@@ -16,7 +16,7 @@ from tacostats.config import STOPWORDS, COMMON_WORDS, CHUNK_TYPES, BOT_TRIGGERS
 
 # before importing pattern need to download the reqd corpora to /tmp, but only in remote Lambda
 # for whatever reason, this doesn't appear to be necessary locally, even using sam invoke
-if os.getenv('AWS_EXECUTION_ENV', "").startswith('AWS_Lambda'):
+if os.getenv("AWS_EXECUTION_ENV", "").startswith("AWS_Lambda"):
     nltk.data.path.append("/tmp")
     for corpus in ["wordnet", "wordnet_ic", "sentiwordnet", "stopwords"]:
         print(f"downloading nltk corpus: {corpus}")
@@ -28,23 +28,24 @@ from pattern.en import parse, parsetree
 def lambda_handler(event, context):
     process_keywords()
 
+
 def parse_comment(comment):
     comment = _clean(comment)
     try:
         parsed = parsetree(
             comment,
-            tokenize=True,      # Split punctuation marks from words?
-            tags=True,          # Parse part-of-speech tags? (NN, JJ, ...)
-            chunks=True,        # Parse chunks? (NP, VP, PNP, ...)
-            relations=True,     # def: False Parse chunk relations? (-SBJ, -OBJ, ...)
-            lemmata=False,      # def: False Parse lemmata? (ate => eat)
-            encoding="utf-8",   # Input string encoding.
+            tokenize=True,  # Split punctuation marks from words?
+            tags=True,  # Parse part-of-speech tags? (NN, JJ, ...)
+            chunks=True,  # Parse chunks? (NP, VP, PNP, ...)
+            relations=True,  # def: False Parse chunk relations? (-SBJ, -OBJ, ...)
+            lemmata=False,  # def: False Parse lemmata? (ate => eat)
+            encoding="utf-8",  # Input string encoding.
             tagset=None,
         )
     except Exception as e:
         print(f"\nWARNING: Unable to parse comment: {comment}")
         print(e)
-        yield (-1,None)
+        yield (-1, None)
     else:
         for sentence in parsed:
             for chunk in sentence.chunks:
@@ -53,7 +54,11 @@ def parse_comment(comment):
                 score += 1 if chunk.type in CHUNK_TYPES else 0
                 score += 1 if chunk.role is not None else 0
                 score += 0.5 if len(chunk.modifiers) > 0 else 0
-                score = 0 if chunk.head.string in COMMON_WORDS + STOPWORDS + BOT_TRIGGERS else score
+                score = (
+                    0
+                    if chunk.head.string in COMMON_WORDS + STOPWORDS + BOT_TRIGGERS
+                    else score
+                )
                 score = 0 if any([i in chunk.string for i in BOT_TRIGGERS]) else score
                 # print(chunk.string, chunk.type, chunk.role, chunk.modifiers, chunk.conjunctions, score)
                 if score > 0:
@@ -100,6 +105,7 @@ def process_comments(comments):
         if row["score"] >= 3
     ]
 
+
 def process_keywords():
     start = datetime.now(timezone.utc)
     print(f"started at {start}...")
@@ -112,12 +118,12 @@ def process_keywords():
     processed = process_comments(comments)
     filtered = [i[0] for i in processed if i[1] > 3]
     keywords = {
-        'keywords_h1': [_format_keyword(i) for i in filtered[:10]],
-        'keywords_h2': [_format_keyword(i) for i in filtered[10:30]],
-        'keywords_h3': [_format_keyword(i) for i in filtered[30:60]],
-        'keywords_h4': [_format_keyword(i) for i in filtered[60:120]],
-        'keywords_h5': [_format_keyword(i) for i in filtered[120:180]],
-        'keywords_h6': [_format_keyword(i) for i in filtered[180:240]],
+        "keywords_h1": [_format_keyword(i) for i in filtered[:10]],
+        "keywords_h2": [_format_keyword(i) for i in filtered[10:30]],
+        "keywords_h3": [_format_keyword(i) for i in filtered[30:60]],
+        "keywords_h4": [_format_keyword(i) for i in filtered[60:120]],
+        "keywords_h5": [_format_keyword(i) for i in filtered[120:180]],
+        "keywords_h6": [_format_keyword(i) for i in filtered[180:240]],
     }
     print("writing stats...")
     io.write(s3_prefix, keywords=keywords)
@@ -129,9 +135,11 @@ def process_keywords():
     duration = (done - start).total_seconds()
     print(f"Finished at {done.isoformat()}, took {duration} seconds")
 
+
 def _format_keyword(keyword) -> str:
     """Return a keyword's main component"""
     return keyword.title()
+
 
 def _clean(text: str) -> str:
     """Clean comment prior to analysis"""
@@ -140,6 +148,7 @@ def _clean(text: str) -> str:
     text = text.lower()
     text = contractions.fix(text)
     return text
+
 
 ### stuff to remove markdown
 # https://stackoverflow.com/questions/761824/python-how-to-convert-markdown-formatted-text-to-text
@@ -165,6 +174,7 @@ __md.stripTopLevelTags = False
 def _unmark(text):
     """strip markdown from comment"""
     return __md.convert(text)
+
 
 if __name__ == "__main__":
     process_keywords()

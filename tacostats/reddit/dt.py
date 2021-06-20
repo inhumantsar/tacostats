@@ -3,16 +3,21 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Generator, Union
 from tacostats.config import EXCLUDED_AUTHORS
 
+from praw import Reddit
 from praw.models import Submission, Redditor
 from praw.reddit import Comment
 
-from tacostats.reddit import reddit_client
+from tacostats.config import REDDIT
 
 CREATE_TIME = time(hour=7, tzinfo=timezone.utc)
+
+reddit_client = Reddit(**REDDIT)
+
 
 @dataclass
 class DT:
     """Date and Submission"""
+
     date: date
     submission: Submission
 
@@ -20,6 +25,7 @@ class DT:
     def __init__(self, submission: Submission):
         self.date = datetime.utcfromtimestamp(submission.created_utc).date()
         self.submission = submission
+
 
 def recap(daysago=1) -> DT:
     """Get a dt from the past. Raises a KeyError"""
@@ -33,14 +39,16 @@ def recap(daysago=1) -> DT:
             return dt
     raise KeyError("No DT Found!")
 
+
 def current() -> DT:
     """Get the current dt by assuming it's one of the current stickies. Raises KeyError."""
     # first sticky might be something else, try both
-    for i in [1,2]:
+    for i in [1, 2]:
         submission = reddit_client.subreddit("neoliberal").sticky(number=i)
         if _is_dt(submission):
             return DT(submission)
     raise KeyError("No DT Found!")
+
 
 def comments(dt: DT) -> Generator[dict, None, None]:
     """Find the appropriate DT and slurp its comments"""
@@ -69,16 +77,17 @@ def comments(dt: DT) -> Generator[dict, None, None]:
         # yield a proper a comment finally
         try:
             yield {
-                    "author": author,
-                    "author_flair_text": comment.author_flair_text,
-                    "score": comment.score,
-                    "id": comment.id,
-                    "permalink": comment.permalink,
-                    "body": comment.body,
-                    "created_utc": comment.created_utc,
-                }
+                "author": author,
+                "author_flair_text": comment.author_flair_text,
+                "score": comment.score,
+                "id": comment.id,
+                "permalink": comment.permalink,
+                "body": comment.body,
+                "created_utc": comment.created_utc,
+            }
         except Exception as e:
             print(f"{comment.id}: {e}")
+
 
 def _build_target_date(daysago) -> date:
     """Returns a date in the past to look for"""
@@ -96,10 +105,13 @@ def _build_target_date(daysago) -> date:
 
 def _is_dt(dt: Submission) -> bool:
     """Runs through a couple tests to be sure it's a DT (or Thunderdome?)"""
-    return all([
-        dt.title == "Discussion Thread" or dt.title.lower().contains("thunderdome"),
-        dt.author == "jobautomator" # add mod list?
-    ])
+    return all(
+        [
+            dt.title == "Discussion Thread" or dt.title.lower().contains("thunderdome"),
+            dt.author == "jobautomator",  # add mod list?
+        ]
+    )
+
 
 def _actually_get_comments(submission):
     """find the right dt, replace all the MoreComments objects, and yield"""
@@ -110,6 +122,7 @@ def _actually_get_comments(submission):
     submission.comments.replace_more(limit=None)
     print(f"done in {(datetime.now(timezone.utc) - start).total_seconds()} seconds")
     return submission.comments.list()
+
 
 def _blank_comment(comment: Comment) -> dict:
     """Dictifies deleted, removed, and other blanked comments"""
@@ -123,12 +136,11 @@ def _blank_comment(comment: Comment) -> dict:
         "created_utc": comment.created_utc,
     }
 
+
 def _get_author_name(author: Union[Redditor, str]) -> str:
     """Author name is a landmine."""
     if not author:
         return ""
     if isinstance(author, str):
         return author
-    return author.name 
-
-
+    return author.name

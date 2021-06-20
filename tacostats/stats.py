@@ -18,8 +18,10 @@ from tacostats.reddit.dt import current, recap, comments
 
 NEUTER_RE = re.compile(r"!ping", re.MULTILINE | re.IGNORECASE | re.UNICODE)
 
+
 def lambda_handler(event, context):
     process_stats()
+
 
 def process_stats():
     start = datetime.now(timezone.utc)
@@ -27,13 +29,13 @@ def process_stats():
 
     dt = recap() if RECAP else current()
     dt_comments = comments(dt)
-    
+
     print("processing comments...")
     full_stats, short_stats = process_comments(dt_comments)
 
     print("writing results...")
     io.write(
-        s3_prefix = dt.date.strftime("%Y-%m-%d"),
+        s3_prefix=dt.date.strftime("%Y-%m-%d"),
         comments=dt_comments,
         full_stats=full_stats,
         short_stats=short_stats,
@@ -52,7 +54,7 @@ def process_comments(dt_comments):
 
     # count then remove blank author fields
     deleted, removed, other = _find_bad_author_counts()
-    cdf = cdf[cdf['author'] != '']
+    cdf = cdf[cdf["author"] != ""]
 
     # add derived columns
     cdf["emoji_count"] = cdf["body"].apply(lambda x: len(_find_emoji(x)))
@@ -65,7 +67,6 @@ def process_comments(dt_comments):
     spammiest = _find_spammiest(cdf)
     upvoted_redditors = _find_upvoted_redditors(cdf)
     wordiest = _find_wordiest(cdf)
-
 
     # build stats dicts
     full_stats = {
@@ -99,13 +100,12 @@ def _build_short_stats(full_stats: dict) -> dict:
             short_stats[k] = v
 
         # keep all the hourly records
-        if k.startswith('hourly') or k == 'activity':
+        if k.startswith("hourly") or k == "activity":
             short_stats[k] = v
 
-        if k == 'top_emoji':
+        if k == "top_emoji":
             # normally only use the top 75%
-            short_stats[k] = v[:round(len(v)*0.8)]
-        
+            short_stats[k] = v[: round(len(v) * 0.8)]
 
 
 def _build_time_indexed_df(cdf: DataFrame) -> DataFrame:
@@ -115,6 +115,7 @@ def _build_time_indexed_df(cdf: DataFrame) -> DataFrame:
     tdf.rename(columns={"created_utc": "created_et"}, inplace=True)
     tdf.set_index("created_et", inplace=True)
     return tdf
+
 
 def _find_wordiest_per_comment(wordiest: DataFrame, spammiest: DataFrame) -> list[dict]:
     """Find the users who used the most words per comment.
@@ -136,7 +137,7 @@ def _find_wordiest_per_comment(wordiest: DataFrame, spammiest: DataFrame) -> lis
 
 def _find_wordiest(cdf: DataFrame) -> DataFrame:
     """Find the users who used the most words overall
-    
+
     Returns:
         DataFrame["author", "author_flair_text", "word_count"]
     """
@@ -146,11 +147,12 @@ def _find_wordiest(cdf: DataFrame) -> DataFrame:
         .sum()
         .reset_index()
         .sort_values(["word_count"], ascending=False)
-    ) 
+    )
+
 
 def _find_avg_scores(upvoted_redditors: DataFrame, spammiest: DataFrame) -> list[dict]:
     """Find the users with the best average upvote score across all their comments
-    
+
     Returns:
         [{'author': str, 'score': int}, ...]
     """
@@ -165,11 +167,12 @@ def _find_avg_scores(upvoted_redditors: DataFrame, spammiest: DataFrame) -> list
         .to_dict("records")
     )
 
+
 def _find_upvoted_redditors(cdf: DataFrame) -> DataFrame:
     """Find the users who have collected the most upvotes
 
     Returns:
-        DataFrame["author", "score"]    
+        DataFrame["author", "score"]
     """
     return (
         cdf[["author", "score"]]
@@ -177,27 +180,32 @@ def _find_upvoted_redditors(cdf: DataFrame) -> DataFrame:
         .sum()
         .reset_index()
         .sort_values(["score"], ascending=False)
-    )    
+    )
+
 
 def _find_upvoted_comments(cdf: DataFrame) -> list[dict]:
     """Find the most highly upvoted comments."""
-    return cdf.sort_values(["score"], ascending=False).to_dict("records")    
+    return cdf.sort_values(["score"], ascending=False).to_dict("records")
+
 
 def _find_spammiest(cdf: DataFrame) -> DataFrame:
     """Find the users who posted the most"""
-    return (cdf[["author", "author_flair_text"]]
+    return (
+        cdf[["author", "author_flair_text"]]
         .value_counts()
         .reset_index()
         .rename(columns={0: "comment_count"})
-        .sort_values(["comment_count"], ascending=False))
+        .sort_values(["comment_count"], ascending=False)
+    )
 
 
 def _find_bad_author_counts(cdf: DataFrame) -> Tuple[int, int, int]:
     """Returns counts of blank messages: `deleted`, `removed`, and `other` in that order"""
-    deleted = int(cdf.loc[cdf['body'] == '[deleted]'].size)
-    removed = int(cdf.loc[cdf['body'] == '[removed]'].size)
-    other = int(cdf.loc[cdf['author'] == ''].size)
+    deleted = int(cdf.loc[cdf["body"] == "[deleted]"].size)
+    removed = int(cdf.loc[cdf["body"] == "[removed]"].size)
+    other = int(cdf.loc[cdf["author"] == ""].size)
     return deleted, removed, other
+
 
 def _find_activity_by_hour(tdf: DataFrame) -> list[float]:
     """Get a normalized activity indicator for each one-hour span.
@@ -215,6 +223,7 @@ def _find_activity_by_hour(tdf: DataFrame) -> list[float]:
     )
     return list(activity["norm_count"].to_dict().values())
 
+
 def _find_wordiest_by_hour(tdf: DataFrame) -> list[dict]:
     """Find the users who wrote the most words within each one-hour span.
 
@@ -227,9 +236,7 @@ def _find_wordiest_by_hour(tdf: DataFrame) -> list[dict]:
         .sum()
     )
     activity = (
-        activity[
-            activity == activity.groupby(level=0).transform("max")
-        ]
+        activity[activity == activity.groupby(level=0).transform("max")]
         .dropna()
         .reset_index()
     )
@@ -241,22 +248,24 @@ def _find_wordiest_by_hour(tdf: DataFrame) -> list[dict]:
 
 def _find_spammiest_by_hour(tdf: DataFrame) -> list[dict]:
     """Find the users who posted the most often within each one-hour span.
-    
+
     Returns:
         [{'created_et': val, 'author': val, 'comment_count': val}, ...]
     """
     spammiest_s = tdf.groupby([pandas.Grouper(freq="H"), "author"]).size()
     d = {}
     for k, v in spammiest_s.iteritems():
-        dt = int(k[0].value / 10**9)
+        dt = int(k[0].value / 10 ** 9)
         if dt not in d.keys() or d[dt][1] < v:
             d[dt] = (k[1], v)
-    return [{'created_et': k, 'author': v[0], 'comment_count': v[1]} for k, v in d.items()]
+    return [
+        {"created_et": k, "author": v[0], "comment_count": v[1]} for k, v in d.items()
+    ]
 
 
 def _find_emoji_spammers(cdf: DataFrame) -> list[dict]:
     """Finds the users who used the most emoji
-    
+
     Returns:
         [{'author': val, 'emoji_count': val}, ...]
     """
@@ -269,22 +278,27 @@ def _find_emoji_spammers(cdf: DataFrame) -> list[dict]:
         .to_dict("records")
     )
 
+
 def _find_top_emoji(cdf: DataFrame) -> list[list[int, str]]:
     """Returns a list of the most used emoji
-    
+
     Returns:
         [[<count>, <emoji>], ...]
     """
-    top_emoji = cdf['body'].apply(_find_emoji)
-    top_emoji = top_emoji.where(top_emoji.str.len() > 0).dropna().explode().value_counts()
+    top_emoji = cdf["body"].apply(_find_emoji)
+    top_emoji = (
+        top_emoji.where(top_emoji.str.len() > 0).dropna().explode().value_counts()
+    )
     return list(zip(top_emoji, top_emoji.index))
+
 
 def _find_emoji(body: str) -> list:
     """Returns all of the emoji, including combined characters, in a string"""
-    emojis = emoji.UNICODE_EMOJI['en'].keys()
+    emojis = emoji.UNICODE_EMOJI["en"].keys()
     # \X matches graphemes, ie: regular chars as well as combined chars like letter+ligature or 👨‍👩‍👦‍👦
-    matches = regex.findall(r'\X', body)
+    matches = regex.findall(r"\X", body)
     return [i for i in matches if i in emojis]
+
 
 # def _find_memeiest(df):
 #     memeiest_terms = ["👆", "👉", "👇", "👈", "☝️"]
@@ -297,13 +311,16 @@ def _find_emoji(body: str) -> list:
 #     )
 #     return memeiest_df.to_dict("records")
 
+
 def _neuter_ping(comment):
     comment["body"] = NEUTER_RE.sub("*ping", comment["body"])
     return comment
 
+
 def _from_utc_to_est(created_utc) -> datetime:
     as_utc = datetime.fromtimestamp(created_utc, tz=timezone.utc)
     return as_utc.astimezone(timezone("US/Eastern"))
+
 
 if __name__ == "__main__":
     process_stats()
