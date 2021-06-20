@@ -1,0 +1,13 @@
+awscli==1.19.97
+boto3==1.17.97
+contractions==0.0.52
+emoji==1.2.0
+jinja2==3.0.1
+markdown==3.3.4
+pandas==1.2.4
+# `pattern` depends on gcc, mysql-devel and friends
+pattern==3.6
+praw==7.3.0
+python-dotenv==0.17.1
+# `nltk` should be installed before this for a smoother process
+rake-nltk==1.0.4

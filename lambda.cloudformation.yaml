@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Resources: 
+  ECRRepo:
+    Type: AWS::ECR::Repository
+    Properties: 
+      RepositoryName: tacostats
+
+
+  RootRole: 
+    Type: AWS::IAM::Role
+    Properties: 
+      RoleName: tacostats
+      ManagedPolicyArns: [arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole]
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: Allow
+            Principal: 
+              Service: 
+                - lambda.amazonaws.com
+            Action: 
+              - sts:AssumeRole
+      Path: /
+  RolePolicies: 
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyName: tacostats
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: 'arn:aws:secretsmanager:us-west-2:676444348764:secret:tacostats-*'
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource: 'arn:aws:s3:::tacostats-data'
+          - Effect: Allow
+            Action: 
+              - s3:PutObject
+              - s3:GetObject
+              - s3:DeleteObject
+            Resource: 'arn:aws:s3:::tacostats-data/*'
+      Roles: 
+        - Ref: RootRole

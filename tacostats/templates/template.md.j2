@@ -1,0 +1,74 @@
+{% macro yester() -%}
+{% if YESTER %}Yesterday's{% endif %}
+{%- endmacro -%}
+
+#### 🏆 {{ yester() }} Top Comment
+
+{% autoescape false -%}
+> {{ ((upvoted_comments[0]['body'][:140] + '...') if upvoted_comments[0]['body']|length > 140 else upvoted_comments[0]['body']) | replace("\n", "\n\n> ") }} 
+{%- endautoescape %}
+
+{{ upvoted_comments[0]['score'] }} points, written by {{ upvoted_comments[0]['author'] }}. [permalink](https://np.reddit.com{{ upvoted_comments[0]['permalink'] }})
+
+{# unused
+{{ (wordiest[2]['author_flair_text'][:35] + '...') if wordiest[2]['author_flair_text']|length > 50 else wordiest[2]['author_flair_text']}} 
+#}
+
+#### ⬆️ {{ yester() }} Top Redditors
+
+| | Redditor | Average | | Redditor | Total |
+|:-:|:-|-:|:-:|:-|-:|
+| 🥇 | {{ best_redditors[0]['author'] }} | {{ best_redditors[0]['avg_score'] }} points | 🥇 | {{ upvoted_redditors[0]['author'] }} | {{ upvoted_redditors[0]['score'] }} points |
+| 🥈 | {{ best_redditors[1]['author'] }} | {{ best_redditors[1]['avg_score'] }} points | 🥈 | {{ upvoted_redditors[1]['author'] }} | {{ upvoted_redditors[1]['score'] }} points |
+| 🥉 | {{ best_redditors[2]['author'] }} | {{ best_redditors[2]['avg_score'] }} points | 🥉 | {{ upvoted_redditors[2]['author'] }} | {{ upvoted_redditors[2]['score'] }} points |
+
+#### 📑 {{ yester() }} Wordiest 
+
+| | Redditor | Average | | Redditor | Total |
+|:-:|:-|-:|:-:|:-|-:|
+| 🥇 | {{ wordiest[0]['author'] }} | {{ wordiest[0]['avg_words'] }} words | 🥇 | {{ wordiest_overall[0]['author'] }} | {{ wordiest_overall[0]['word_count'] }} words |
+| 🥈 | {{ wordiest[1]['author'] }} | {{ wordiest[1]['avg_words'] }} words | 🥈 | {{ wordiest_overall[1]['author'] }} | {{ wordiest_overall[1]['word_count'] }} words |
+| 🥉 | {{ wordiest[2]['author'] }} | {{ wordiest[2]['avg_words'] }} words | 🥉 | {{ wordiest_overall[2]['author'] }} | {{ wordiest_overall[2]['word_count'] }} words |
+
+#### 📟 {{ yester() }} Spammiest
+| | Redditor | Comments | | Redditor | 🧐😭😤🤯 |
+|:-:|:-|-:|:-:|:-|-:|
+| 🥇 | {{ spammiest[0]['author'] }} | {{ spammiest[0]['comment_count'] }} comments | 🥇 | {{ emoji_spammers[0]['author'] }} | {{ emoji_spammers[0]['emoji_count'] }} emoji |
+| 🥈 | {{ spammiest[1]['author'] }} | {{ spammiest[1]['comment_count'] }} comments | 🥈 | {{ emoji_spammers[1]['author'] }} | {{ emoji_spammers[1]['emoji_count'] }} emoji |
+| 🥉 | {{ spammiest[2]['author'] }} | {{ spammiest[2]['comment_count'] }} comments | 🥉 | {{ emoji_spammers[2]['author'] }} | {{ emoji_spammers[2]['emoji_count'] }} emoji |
+
+#### 🐊 {{ yester() }} Favourite Emoji
+
+{% set platinum = (top_emoji|length * 0.05)|round(0, 'floor')|int -%}
+{%- set gold = (top_emoji|length * 0.1)|round(0, 'floor')|int -%}
+{%- set silver = (top_emoji|length * 0.2)|round(0, 'floor')|int -%}
+{%- set bronze = (top_emoji|length * 0.4)|round(0, 'floor')|int -%}
+
+# {{ top_emoji[0][1] }} with {{ top_emoji[0][0] }} uses.
+## {% for i in top_emoji[1:platinum] %}{{ i[1] }} {{ i[0] }} {% endfor %}
+### {% for i in top_emoji[platinum:gold] %}{{ i[1] }} {{ i[0] }} {% endfor %}
+#### {% for i in top_emoji[gold:silver] %}{{ i[1] }} {% endfor %}
+##### {% for i in top_emoji[silver:bronze] %}{{ i[1] }} {% endfor %}
+###### {% for i in top_emoji[bronze:] %}{{ i[1] }} {% endfor %}
+
+#### 🕓 {{ yester() }} Activity
+
+{%- set clocks = ['🕒',  '🕓',  '🕔',  '🕕',  '🕖',  '🕗',  '🕘',  '🕙',  '🕚',  '🕛',  '🕐',  '🕑',  '🕒',  '🕓',  '🕔',  '🕕',  '🕖',  '🕗',  '🕘',  '🕙',  '🕚',  '🕛',  '🕐',  '🕑'] %}
+
+| Time | Overall Activity | 📟 Spammiest | 
+|:-:|:-|:-|
+{% for i in range(activity|length - 1) %}| {{ clocks[i] }} | {{ '█' * ((activity[i] * 15 + 1)|round|int) }} | **{{ hourly_spammiest[i]['author'] }}** ({{ hourly_spammiest[i]['comment_count'] }} comments) |
+{% endfor %}
+
+#### 🗑️ {{ deleted }} deleted, ❌ {{ removed }} fashed comments.
+
+Additionally, {{ other_blank }} other removed comments were found. These were likely posted by now-deleted or shadowbanned users, or they were hit by the spam filters. 
+
+
+#### ❓ *Feedback Wanted:* [How often should I post these stats?](https://www.strawpoll.me/45371264)
+
+---
+
+^(I am a bot and this action was performed automatically.)
+
+^(Stats are processed periodically throughout the day. Check my post history for previous reports. Created by inhumantsar. [Source](https://github.com/inhumantsar/tacostats))

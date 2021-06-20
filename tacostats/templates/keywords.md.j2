@@ -1,0 +1,19 @@
+#### 🔍 {% if YESTER %}Yesterday's{% else %}Today's{% endif %} Top Keywords
+
+# {% for i in range(keywords_h1|length) %}{{ keywords_h1[i] }} {% if i < (keywords_h1|length-1) %}/{% endif %} {% endfor %}
+
+## {% for i in range(keywords_h2|length) %}{{ keywords_h2[i] }} {% if i < (keywords_h2|length-1) %}/{% endif %} {% endfor %}
+
+### {% for i in range(keywords_h3|length) %}{{ keywords_h3[i] }} {% if i < (keywords_h3|length-1) %}/{% endif %} {% endfor %}
+
+#### {% for i in range(keywords_h4|length) %}{{ keywords_h4[i] }} {% if i < (keywords_h4|length-1) %}/{% endif %} {% endfor %}
+
+##### {% for i in range(keywords_h5|length) %}{{ keywords_h5[i] }} {% if i < (keywords_h5|length-1) %}/{% endif %} {% endfor %}
+
+###### {% for i in range(keywords_h6|length) %}{{ keywords_h6[i] }} {% if i < (keywords_h6|length-1) %}/{% endif %} {% endfor %}
+
+---
+
+^(I am a bot and this action was performed automatically.)
+
+^(Stats are processed periodically throughout the day. Check my post history for previous reports. Created by inhumantsar. [Source](https://github.com/inhumantsar/tacostats))
