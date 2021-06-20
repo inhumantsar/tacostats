@@ -25,21 +25,6 @@ def write_s3(prefix, **kwargs):
             Key=f"{prefix}/{key}.json"
         )
 
-def _check_for_unserializable_shit(value):
-    if isinstance(value, list):
-        for i in value:
-            _check_for_unserializable_shit(i)
-    elif isinstance(value, dict):
-        for k, v in value.items():
-            _check_for_unserializable_shit(k)
-            _check_for_unserializable_shit(v)
-    else:
-        try:
-            json.dumps(value)
-        except Exception as e:
-            print(f"GOTCHA: {value}")
-            raise(e)
-
 def write_local(**kwargs):
     if not LOCAL_STATS:
         print('LOCAL_STATS is falsey, skipping local write.')
@@ -55,20 +40,18 @@ def read_local(key):
     with open(f"{key}.json", encoding='utf-8') as fh:
         return json.loads(fh.read())
 
-def cache_available():
-    f = pathlib.Path(f"cache.json")
-    if not f.exists(): return False  
-    stat = f.stat()
-    # 0 byte file
-    if stat.st_size == 0: return False
-    # dry runs, do it regardless of mtime
-    if DRY_RUN: return True
-    # modified relatively recently.
-    mtime = datetime.fromtimestamp(stat.st_mtime)
-    return True if mtime > (datetime.now() - timedelta(minutes=15)) else False
+def _check_for_unserializable_shit(value):
+    if isinstance(value, list):
+        for i in value:
+            _check_for_unserializable_shit(i)
+    elif isinstance(value, dict):
+        for k, v in value.items():
+            _check_for_unserializable_shit(k)
+            _check_for_unserializable_shit(v)
+    else:
+        try:
+            json.dumps(value)
+        except Exception as e:
+            print(f"GOTCHA: {value}")
+            raise(e)
 
-def read_cache():
-    return read_local('cache')
-
-def write_cache(data):
-    write_local(cache=data)

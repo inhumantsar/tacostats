@@ -9,9 +9,9 @@ import pandas
 import nltk
 
 from markdown import Markdown
-from pprint import pprint
 
-from tacostats import reddit, io
+from tacostats import io
+from tacostats.reddit import dt, report
 from tacostats.config import STOPWORDS, COMMON_WORDS, CHUNK_TYPES, BOT_TRIGGERS
 
 # before importing pattern need to download the reqd corpora to /tmp, but only in remote Lambda
@@ -24,12 +24,9 @@ if os.getenv('AWS_EXECUTION_ENV', "").startswith('AWS_Lambda'):
 
 from pattern.en import parse, parsetree
 
-def _clean(text):
-    text = _unmark(text)
-    text = re.sub(r"https?://\S+", "", text, flags=re.MULTILINE)
-    text = text.lower()
-    text = contractions.fix(text)
-    return text
+
+def lambda_handler(event, context):
+    process_keywords()
 
 def parse_comment(comment):
     comment = _clean(comment)
@@ -103,15 +100,12 @@ def process_comments(comments):
         if row["score"] >= 3
     ]
 
-def _format_keyword(keyword):
-    return keyword.title()
-
 def process_keywords():
     start = datetime.now(timezone.utc)
     print(f"started at {start}...")
 
     print("getting comments...")
-    date, comments = reddit.get_comments()
+    date, comments = dt.comments()
     s3_prefix = date.strftime("%Y-%m-%d")
 
     print("processing comments...")
@@ -129,16 +123,28 @@ def process_keywords():
     io.write(s3_prefix, keywords=keywords)
 
     print("posting comment...")
-    reddit.post_comment(keywords, "keywords.md.j2")
+    report.post(keywords, "keywords.md.j2")
 
     done = datetime.now(timezone.utc)
     duration = (done - start).total_seconds()
     print(f"Finished at {done.isoformat()}, took {duration} seconds")
 
+def _format_keyword(keyword) -> str:
+    """Return a keyword's main component"""
+    return keyword.title()
+
+def _clean(text: str) -> str:
+    """Clean comment prior to analysis"""
+    text = _unmark(text)
+    text = re.sub(r"https?://\S+", "", text, flags=re.MULTILINE)
+    text = text.lower()
+    text = contractions.fix(text)
+    return text
 
 ### stuff to remove markdown
 # https://stackoverflow.com/questions/761824/python-how-to-convert-markdown-formatted-text-to-text
 def _unmark_element(element, stream=None):
+    """Clean markdown from comment"""
     if stream is None:
         stream = StringIO()
     if element.text:
@@ -159,11 +165,6 @@ __md.stripTopLevelTags = False
 def _unmark(text):
     """strip markdown from comment"""
     return __md.convert(text)
-
-def lambda_handler(event, context):
-    process_keywords()
-
-
 
 if __name__ == "__main__":
     process_keywords()

@@ -10,10 +10,6 @@ import pandas
 from tacostats import io
 
 
-# flair stats
-# _, comments, _, _ = reddit.get_comments(force_cache=True)
-# cdf = pandas.DataFrame(comments)
-
 _REGEX = re.compile(r'.*(\:[\-\w]+\:)')
 _BUCKET = 'tacostats-data'
 _DAY_RANGE = 7
