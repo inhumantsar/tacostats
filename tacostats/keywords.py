@@ -1,3 +1,4 @@
+import os
 import re
 
 from datetime import datetime, timezone
@@ -8,11 +9,20 @@ import pandas
 import nltk
 
 from markdown import Markdown
-from pattern.en import parse, parsetree
 from pprint import pprint
 
 from tacostats import reddit, io
 from tacostats.config import STOPWORDS, COMMON_WORDS, CHUNK_TYPES, BOT_TRIGGERS
+
+# before importing pattern need to download the reqd corpora to /tmp, but only in remote Lambda
+# for whatever reason, this doesn't appear to be necessary locally, even using sam invoke
+if os.getenv('AWS_EXECUTION_ENV', "").startswith('AWS_Lambda'):
+    nltk.data.path.append("/tmp")
+    for corpus in ["wordnet", "wordnet_ic", "sentiwordnet", "stopwords"]:
+        print(f"downloading nltk corpus: {corpus}")
+        nltk.download(corpus, download_dir="/tmp")
+
+from pattern.en import parse, parsetree
 
 def _clean(text):
     text = _unmark(text)
@@ -99,11 +109,6 @@ def _format_keyword(keyword):
 def process_keywords():
     start = datetime.now(timezone.utc)
     print(f"started at {start}...")
-
-    print(f"downloading stopwords...")
-    nltk.data.path.append("/tmp")
-    nltk.download('stopwords', download_dir="/tmp")
-    print(f"stopwords download complete in {(datetime.now(timezone.utc) - start).total_seconds()} seconds")
 
     print("getting comments...")
     date, comments = reddit.get_comments()
