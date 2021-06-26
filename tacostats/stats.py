@@ -1,9 +1,8 @@
 import re
-from typing import Any, Iterable, Tuple
-from numpy import isin, short
+from typing import Any, Dict, Iterable, List, Tuple
 
 from pandas.core.frame import DataFrame
-from tacostats.config import RECAP, USE_EXISTING
+from tacostats.config import RECAP
 import regex  # supports grapheme search
 
 from datetime import datetime, timezone
@@ -37,7 +36,6 @@ def process_stats():
     print("writing results...")
     io.write(
         dt.date.strftime("%Y-%m-%d"),
-        comments=list(dt_comments),
         full_stats=full_stats,
         short_stats=short_stats,
     )
@@ -50,7 +48,7 @@ def process_stats():
     print(f"Finished at {done.isoformat()}, took {duration} seconds")
 
 
-def _process_comments(dt_comments: Iterable[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
+def _process_comments(dt_comments: Iterable[Dict[str, Any]]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """build a full dataset and a short dataset from a list of comments"""
     cdf = pandas.DataFrame(dt_comments) # type: ignore
 
@@ -134,7 +132,7 @@ def _build_time_indexed_df(cdf: DataFrame) -> DataFrame:
     return tdf
 
 
-def _find_wordiest_per_comment(wordiest: DataFrame, spammiest: DataFrame) -> list[dict]:
+def _find_wordiest_per_comment(wordiest: DataFrame, spammiest: DataFrame) -> List[dict]:
     """Find the users who used the most words per comment.
 
     Returns:
@@ -167,7 +165,7 @@ def _find_wordiest(cdf: DataFrame) -> DataFrame:
     )
 
 
-def _find_avg_scores(upvoted_redditors: DataFrame, spammiest: DataFrame) -> list[dict]:
+def _find_avg_scores(upvoted_redditors: DataFrame, spammiest: DataFrame) -> List[dict]:
     """Find the users with the best average upvote score across all their comments
 
     Returns:
@@ -200,7 +198,7 @@ def _find_upvoted_redditors(cdf: DataFrame) -> DataFrame:
     )
 
 
-def _find_upvoted_comments(cdf: DataFrame) -> list[dict]:
+def _find_upvoted_comments(cdf: DataFrame) -> List[dict]:
     """Find the most highly upvoted comments."""
     return cdf.sort_values(["score"], ascending=False).to_dict("records")
 
@@ -225,7 +223,7 @@ def _find_bad_author_counts(cdf: DataFrame) -> Tuple[int, int, int]:
     return deleted, removed, other
 
 
-def _find_activity_by_hour(tdf: DataFrame) -> list[float]:
+def _find_activity_by_hour(tdf: DataFrame) -> List[float]:
     """Get a normalized activity indicator for each one-hour span.
 
     Returns:
@@ -242,7 +240,7 @@ def _find_activity_by_hour(tdf: DataFrame) -> list[float]:
     return list(activity["norm_count"].to_dict().values())
 
 
-def _find_wordiest_by_hour(tdf: DataFrame) -> list[dict]:
+def _find_wordiest_by_hour(tdf: DataFrame) -> List[dict]:
     """Find the users who wrote the most words within each one-hour span.
 
     Returns:
@@ -264,7 +262,7 @@ def _find_wordiest_by_hour(tdf: DataFrame) -> list[dict]:
     return activity.to_dict("records")
 
 
-def _find_spammiest_by_hour(tdf: DataFrame) -> list[dict]:
+def _find_spammiest_by_hour(tdf: DataFrame) -> List[dict]:
     """Find the users who posted the most often within each one-hour span.
 
     Returns:
@@ -281,7 +279,7 @@ def _find_spammiest_by_hour(tdf: DataFrame) -> list[dict]:
     ]
 
 
-def _find_emoji_spammers(cdf: DataFrame) -> list[dict]:
+def _find_emoji_spammers(cdf: DataFrame) -> List[dict]:
     """Finds the users who used the most emoji
 
     Returns:
@@ -297,7 +295,7 @@ def _find_emoji_spammers(cdf: DataFrame) -> list[dict]:
     )
 
 
-def _find_top_emoji(cdf: DataFrame) -> list[list]:
+def _find_top_emoji(cdf: DataFrame) -> List[list]:
     """Returns a list of the most used emoji
 
     Returns:

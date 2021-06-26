@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  tacostats
+  tacostats v0.0.0
 
   periodically grab comments from the r/neoliberal DT and gather some basic statistics
 
@@ -11,20 +11,70 @@ Globals:
     Timeout: 900
 
 Resources:
+  ###############
+  # Harvester
+  ###############
+  Harvester:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      PackageType: Image
+      MemorySize: 256
+      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v0.0.0
+      ImageConfig:
+        Command: 
+          - tacostats.harvester.lambda_handler
+      Role: arn:aws:iam::676444348764:role/tacostats
+      Events:
+        # schedules in utc, et equivs: 12,16,21
+        Cron:
+          Type: Schedule
+          Properties:
+            Schedule: cron(5/10 * * * ? *)
+            Enabled: True       
+    Metadata:
+      Dockerfile: lambda.Dockerfile
+      DockerContext: "."
+
+  # post a recap of yesterday's stats in the morning
+  HarvesterRecap:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      PackageType: Image
+      MemorySize: 256
+      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v0.0.0
+      ImageConfig:
+        Command: 
+          - tacostats.harvester.lambda_handler
+      Environment:
+        Variables:
+          RECAP: True
+      Role: arn:aws:iam::676444348764:role/tacostats
+      Events:
+        Cron:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 7 * * ? *)
+            Enabled: True       
+    Metadata:
+      Dockerfile: lambda.Dockerfile
+      DockerContext: "."
+
+  ###############
+  # Statistics
+  ###############
   Stats:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
       PackageType: Image
       MemorySize: 256
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:latest
+      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v0.0.0
       ImageConfig:
         Command: 
           - tacostats.stats.lambda_handler
-      # Environment:
-      #   Variables:
-      #     TABLE_NAME: my-table
-      #     STAGE: prod
       Role: arn:aws:iam::676444348764:role/tacostats
+      Environment:
+        Variables:
+          USE_EXISTING: True
       Events:
         # schedules in utc, et equivs: 12,16,21
         Cron:
@@ -42,13 +92,14 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 256
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:latest
+      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v0.0.0
       ImageConfig:
         Command: 
           - tacostats.stats.lambda_handler
       Environment:
         Variables:
           RECAP: True
+          USE_EXISTING: True
       Role: arn:aws:iam::676444348764:role/tacostats
       Events:
         # schedules in utc, 9et
@@ -61,19 +112,21 @@ Resources:
       Dockerfile: lambda.Dockerfile
       DockerContext: "."
 
-  # post keywords 
+  ###############
+  # Keywords
+  ###############
   Keywords:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
       PackageType: Image
       MemorySize: 384
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:latest
+      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v0.0.0
       ImageConfig:
         Command: 
           - tacostats.keywords.lambda_handler
-      # Environment:
-      #   Variables:
-      #     RECAP: True
+      Environment:
+        Variables:
+          USE_EXISTING: True
       Role: arn:aws:iam::676444348764:role/tacostats
       Events:
         # schedules in utc, et equiv: 16,21
@@ -92,13 +145,14 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 384
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:latest
+      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v0.0.0
       ImageConfig:
         Command: 
           - tacostats.keywords.lambda_handler
       Environment:
         Variables:
           RECAP: True
+          USE_EXISTING: True
       Role: arn:aws:iam::676444348764:role/tacostats
       Events:
         # schedules in utc, 10et
@@ -111,13 +165,3 @@ Resources:
       Dockerfile: lambda.Dockerfile
       DockerContext: "."
 
-# Outputs:
-#   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-#   # Find out more about other implicit resources you can reference within SAM
-#   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-#   HelloWorldFunction:
-#     Description: "Hello World Lambda Function ARN"
-#     Value: !GetAtt HelloWorldFunction.Arn
-#   HelloWorldFunctionIamRole:
-#     Description: "Implicit IAM Role created for Hello World function"
-#     Value: !GetAtt HelloWorldFunctionRole.Arn

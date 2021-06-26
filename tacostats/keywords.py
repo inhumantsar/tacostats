@@ -3,7 +3,7 @@ import re
 
 from datetime import datetime, timezone
 from io import StringIO
-from typing import Generator, Iterable
+from typing import Dict, Generator, Iterable, List, Tuple
 
 import contractions
 import pandas
@@ -64,7 +64,7 @@ def process_keywords():
     duration = (done - start).total_seconds()
     print(f"Finished at {done.isoformat()}, took {duration} seconds")
 
-def _parse_comment(comment: str) -> Generator[tuple[float, str], None, None]:
+def _parse_comment(comment: str) -> Generator[Tuple[float, str], None, None]:
     """use pattern to parse keywords out of a comment"""
     comment_str = _clean(comment)
     try:
@@ -86,7 +86,7 @@ def _parse_comment(comment: str) -> Generator[tuple[float, str], None, None]:
         for sentence in parsed:
             yield from _parse_sentence(sentence)
 
-def _parse_sentence(sentence) -> Generator[tuple[float, str], None, None]:
+def _parse_sentence(sentence) -> Generator[Tuple[float, str], None, None]:
     """flip through each chunk of a sentence, scoring and cleaning it.""" 
     for chunk in sentence.chunks:
         if (score := _score_chunk(chunk)) > 0:
@@ -114,7 +114,7 @@ def _score_chunk(chunk) -> float:
     return score
 
 
-def _process_comments(comments: Iterable[dict[str,str]]) -> list[tuple[str,float]]:
+def _process_comments(comments: Iterable[Dict[str,str]]) -> List[Tuple[str,float]]:
     """pull significant keywords from comment list"""
     cdf = pandas.DataFrame(comments) # type: ignore
     print(f"got {cdf.count()} comments")
@@ -150,7 +150,7 @@ def _process_comments(comments: Iterable[dict[str,str]]) -> list[tuple[str,float
             keyword_tuple = _get_keyword_tuple(row)
             yield keyword_tuple
 
-def _get_keyword_tuple(row) -> tuple[str, float]:
+def _get_keyword_tuple(row) -> Tuple[str, float]:
     return (row["keyword"], row["score"])
 
 def _format_keyword(keyword) -> str:

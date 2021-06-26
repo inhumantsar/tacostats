@@ -1,6 +1,8 @@
+import pytz
+
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Any, Generator, Union
+from typing import Any, Dict, Generator, List, Union
 
 from praw import Reddit
 from praw.models import Submission, Redditor
@@ -49,7 +51,7 @@ def current() -> DT:
     raise KeyError("No DT Found!")
 
 
-def comments(dt: DT) -> Generator[dict[str, Any], None, None]:
+def comments(dt: DT) -> Generator[Dict[str, Any], None, None]:
     """Find the appropriate DT and slurp its comments"""
     print(f"getting comments...")
     # existing comments files in s3 have already been processed
@@ -63,7 +65,7 @@ def comments(dt: DT) -> Generator[dict[str, Any], None, None]:
                 yield processed
 
 
-def _process_raw_comment(comment: Comment, dt: DT) -> Union[None, dict[str, Any]]:
+def _process_raw_comment(comment: Comment, dt: DT) -> Union[None, Dict[str, Any]]:
     """clean up comments and return a dictionary. 
     
     Args:
@@ -72,8 +74,8 @@ def _process_raw_comment(comment: Comment, dt: DT) -> Union[None, dict[str, Any]
     """
     # recaps end up coming with a handful of comments from the next day
     # need to NOT exclude comments from the next day but before the next dt though
-    cdt = datetime.utcfromtimestamp(comment.created_utc)
-    eodt = datetime.combine(DT.date + timedelta(days=1), CREATE_TIME) # type: ignore
+    cdt = datetime.fromtimestamp(comment.created_utc, tz=pytz.utc)
+    eodt = datetime.combine(dt.date + timedelta(days=1), CREATE_TIME, tzinfo=pytz.utc)
     if cdt > eodt:
         print(f"comment too new: {comment} {cdt}")
         return None
@@ -127,7 +129,7 @@ def _is_dt(dt: Submission) -> bool:
     )
 
 
-def _actually_get_comments(submission: Submission) -> list[Comment]:
+def _actually_get_comments(submission: Submission) -> List[Comment]:
     """Get all comments from submission"""
     print("running replace_more... this will take a while...")
     start = datetime.now(timezone.utc)

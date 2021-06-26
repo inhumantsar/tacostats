@@ -29,7 +29,7 @@ def _actually_post(dt: DT, body: str):
             f"\n---------------\n--- The above comment would have been written to {dt.submission.id} {dt.date}\n---------------"
         )
     else:
-        dt.reply(body)
+        dt.submission.reply(body)
         print(f"comment posted to {dt.submission.id} {dt.date}")
 
 

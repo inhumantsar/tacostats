@@ -8,4 +8,4 @@ s3_prefix = "tacostats"
 region = "us-west-2"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-image_repositories = ["Stats=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:latest", "StatsRecap=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:latest", "Keywords=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:latest", "KeywordsRecap=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:latest"]
+image_repositories = ["Harvester=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v0.0.0", "HarvesterRecap=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v0.0.0", "Stats=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v0.0.0", "StatsRecap=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v0.0.0", "Keywords=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v0.0.0", "KeywordsRecap=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v0.0.0"]

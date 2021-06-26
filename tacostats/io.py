@@ -10,10 +10,14 @@ _S3_CLIENT = boto3.client("s3")
 
 
 def write(prefix, **kwargs):
-    if prefix and not DRY_RUN:
-        write_s3(prefix, **kwargs)
     if LOCAL_STATS:
         write_local(**kwargs)
+    if DRY_RUN:
+        print('dry run enabled. skipping s3 write.')
+    elif prefix:
+        write_s3(prefix, **kwargs)
+    else:
+        print("DRY_RUN is off but prefix isn't set. not writing to s3.")
 
 
 def write_s3(prefix, **kwargs):

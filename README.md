@@ -24,6 +24,5 @@ This was developed on Windows and designed to run on Amazon Linux. It should be 
 
 ### Deploy Lambda Functions
 
-    aws --region us-west-2 ecr get-login-password | docker login --username AWS --password-stdin 676444348764.dkr.ecr.us-west-2.amazonaws.com
-    docker push 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats
-    & 'C:\Program Files\Amazon\AWSSAMCLI\bin\sam.cmd' deploy --config-file .\samconfig.toml -t .\lambda.template.yaml
+    bump2version [major|minor|patch]
+    .\deploy.ps1
