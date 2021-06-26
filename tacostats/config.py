@@ -14,6 +14,8 @@ DRY_RUN = bool(strtobool(os.getenv("DRY_RUN", "False")))
 print("DRY_RUN set to ", DRY_RUN)
 LOCAL_STATS = bool(strtobool(os.getenv("LOCAL_STATS", "False")))
 print("LOCAL_STATS set to ", LOCAL_STATS)
+USE_EXISTING = bool(strtobool(os.getenv("USE_EXISTING", "False")))
+print("USE_EXISTING set to ", USE_EXISTING)
 
 # if true, look at yesterday's stats
 RECAP = bool(strtobool(os.getenv("RECAP", "False")))
@@ -45,6 +47,15 @@ BOT_TRIGGERS = [
     "ping",
 ]
 COMMON_WORDS = [
+    "etc",
+    "etc.",
+    "area",
+    "place",
+    "places",
+    "image",
+    "rest",
+    "days",
+    "picture",
     "number",
     "guy",
     "guys",

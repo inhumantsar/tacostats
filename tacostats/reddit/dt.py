@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Generator, Union
-from tacostats.config import EXCLUDED_AUTHORS
+from typing import Any, Generator, Union
 
 from praw import Reddit
 from praw.models import Submission, Redditor
 from praw.reddit import Comment
 
-from tacostats.config import REDDIT
+from tacostats.config import REDDIT, EXCLUDED_AUTHORS, USE_EXISTING
+from tacostats import io
 
 CREATE_TIME = time(hour=7, tzinfo=timezone.utc)
 
@@ -17,14 +17,11 @@ reddit_client = Reddit(**REDDIT)
 @dataclass
 class DT:
     """Date and Submission"""
-
-    date: date
     submission: Submission
 
-    @staticmethod
-    def __init__(self, submission: Submission):
-        self.date = datetime.utcfromtimestamp(submission.created_utc).date()
-        self.submission = submission
+    @property
+    def date(self) -> date:
+        return datetime.utcfromtimestamp(self.submission.created_utc).date()        
 
 
 def recap(daysago=1) -> DT:
@@ -34,6 +31,8 @@ def recap(daysago=1) -> DT:
 
     QUERY = 'title:"Discussion Thread" author:jobautomator'
     for submission in reddit_client.subreddit("neoliberal").search(QUERY, sort="new"):
+        if not submission:
+            print(f"submission is falsey: {submission}")
         dt = DT(submission)
         if target_date == dt.date:
             return dt
@@ -50,46 +49,61 @@ def current() -> DT:
     raise KeyError("No DT Found!")
 
 
-def comments(dt: DT) -> Generator[dict, None, None]:
+def comments(dt: DT) -> Generator[dict[str, Any], None, None]:
     """Find the appropriate DT and slurp its comments"""
     print(f"getting comments...")
-    for comment in _actually_get_comments(dt.submission):
-        # recaps end up coming with a handful of comments from the next day
-        # need to NOT exclude comments from the next day but before the next dt though
-        cdt = datetime.utcfromtimestamp(comment.created_utc)
-        eodt = datetime.combine(dt.date + timedelta(days=1), CREATE_TIME)
-        if cdt > eodt:
-            print(f"comment too new: {comment} {cdt}")
-            continue
-
-        # author is a touchy field
-        author = _get_author_name(comment.author)
-
-        # skip over comments by bots, etc
-        if author in EXCLUDED_AUTHORS:
-            continue
-
-        # deleted, removed, etc comments have no author
-        if not author:
-            yield _blank_comment(comment)
-            continue
-
-        # yield a proper a comment finally
-        try:
-            yield {
-                "author": author,
-                "author_flair_text": comment.author_flair_text,
-                "score": comment.score,
-                "id": comment.id,
-                "permalink": comment.permalink,
-                "body": comment.body,
-                "created_utc": comment.created_utc,
-            }
-        except Exception as e:
-            print(f"{comment.id}: {e}")
+    # existing comments files in s3 have already been processed
+    if USE_EXISTING:
+        print(f"reading comments already stored on s3 for {dt.date}")
+        yield from io.read_s3(prefix_date=dt.date)
+    else:
+        print(f"reading comments direct from reddit for {dt.date}")
+        for comment in _actually_get_comments(dt.submission):
+            if processed := _process_raw_comment(comment, dt):
+                yield processed
 
 
-def _build_target_date(daysago) -> date:
+def _process_raw_comment(comment: Comment, dt: DT) -> Union[None, dict[str, Any]]:
+    """clean up comments and return a dictionary. 
+    
+    Args:
+        comment 
+        dt_date     - Used to filter out comments which don't belong to the target dt.
+    """
+    # recaps end up coming with a handful of comments from the next day
+    # need to NOT exclude comments from the next day but before the next dt though
+    cdt = datetime.utcfromtimestamp(comment.created_utc)
+    eodt = datetime.combine(DT.date + timedelta(days=1), CREATE_TIME) # type: ignore
+    if cdt > eodt:
+        print(f"comment too new: {comment} {cdt}")
+        return None
+
+    # author is a touchy field
+    author = _get_author_name(comment.author)
+
+    # skip over comments by bots, etc
+    # if author in EXCLUDED_AUTHORS:
+    #     return None
+
+    # deleted, removed, etc comments have no author
+    if not author:
+        return _blank_comment(comment)
+
+    # yield a proper a comment finally
+    try:
+        return {
+            "author": author,
+            "author_flair_text": comment.author_flair_text,
+            "score": comment.score,
+            "id": comment.id,
+            "permalink": comment.permalink,
+            "body": comment.body,
+            "created_utc": comment.created_utc,
+        }
+    except Exception as e:
+        print(f"{comment.id}: {e}")    
+
+def _build_target_date(daysago: int) -> date:
     """Returns a date in the past to look for"""
     current_utc = datetime.now().astimezone(timezone.utc)
 
@@ -113,13 +127,13 @@ def _is_dt(dt: Submission) -> bool:
     )
 
 
-def _actually_get_comments(submission):
-    """find the right dt, replace all the MoreComments objects, and yield"""
+def _actually_get_comments(submission: Submission) -> list[Comment]:
+    """Get all comments from submission"""
     print("running replace_more... this will take a while...")
     start = datetime.now(timezone.utc)
     submission.comment_sort = "new"
     submission.comment_limit = 1000
-    submission.comments.replace_more(limit=None)
+    submission.comments.replace_more(limit=None) # type: ignore
     print(f"done in {(datetime.now(timezone.utc) - start).total_seconds()} seconds")
     return submission.comments.list()
 
