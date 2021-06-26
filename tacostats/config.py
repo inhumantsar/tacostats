@@ -9,28 +9,36 @@ from dotenv import load_dotenv
 load_dotenv(verbose=True)
 
 S3_BUCKET = os.getenv("S3_BUCKET")
-print('S3_BUCKET set to ', S3_BUCKET)
+print("S3_BUCKET set to ", S3_BUCKET)
 DRY_RUN = bool(strtobool(os.getenv("DRY_RUN", "False")))
-print('DRY_RUN set to ', DRY_RUN)
+print("DRY_RUN set to ", DRY_RUN)
 LOCAL_STATS = bool(strtobool(os.getenv("LOCAL_STATS", "False")))
-print('LOCAL_STATS set to ', LOCAL_STATS)
+print("LOCAL_STATS set to ", LOCAL_STATS)
+USE_EXISTING = bool(strtobool(os.getenv("USE_EXISTING", "False")))
+print("USE_EXISTING set to ", USE_EXISTING)
 
 # if true, look at yesterday's stats
 RECAP = bool(strtobool(os.getenv("RECAP", "False")))
-print('RECAP set to ', RECAP)
+print("RECAP set to ", RECAP)
 
-secrets = boto3.client('secretsmanager')
-get_secret = lambda x: secrets.get_secret_value(SecretId=x)['SecretString']
+secrets = boto3.client("secretsmanager")
+get_secret = lambda x: secrets.get_secret_value(SecretId=x)["SecretString"]
 
 REDDIT = {
-    "client_id": os.getenv("REDDIT_ID", get_secret('tacostats-reddit-client-id')),
-    "client_secret": os.getenv("REDDIT_SECRET", get_secret('tacostats-reddit-secret')),
+    "client_id": os.getenv("REDDIT_ID", get_secret("tacostats-reddit-client-id")),
+    "client_secret": os.getenv("REDDIT_SECRET", get_secret("tacostats-reddit-secret")),
     "user_agent": os.getenv("REDDIT_UA"),
     "username": os.getenv("REDDIT_USER"),
-    "password": os.getenv("REDDIT_PASS", get_secret('tacostats-reddit-password')),
+    "password": os.getenv("REDDIT_PASS", get_secret("tacostats-reddit-password")),
 }
 
-EXCLUDED_AUTHORS = ["jobautomator", "AutoModerator", "EmojifierBot", "groupbot", "tacostats"]
+EXCLUDED_AUTHORS = [
+    "jobautomator",
+    "AutoModerator",
+    "EmojifierBot",
+    "groupbot",
+    "tacostats",
+]
 CHUNK_TYPES = ["NP", "ADJP"]
 
 BOT_TRIGGERS = [
@@ -39,6 +47,15 @@ BOT_TRIGGERS = [
     "ping",
 ]
 COMMON_WORDS = [
+    "etc",
+    "etc.",
+    "area",
+    "place",
+    "places",
+    "image",
+    "rest",
+    "days",
+    "picture",
     "number",
     "guy",
     "guys",
@@ -128,7 +145,7 @@ COMMON_WORDS = [
     "try",
     "ones",
     "article",
-    "members", # because "congress" will catch that meaning
+    "members",  # because "congress" will catch that meaning
     "remember",
     "fine",
     "years",
@@ -136,8 +153,8 @@ COMMON_WORDS = [
     "words",
     "take",
     "news",
-    "cars",      # car will almost always cover that
-    "dems",      # ditto democrats
+    "cars",  # car will almost always cover that
+    "dems",  # ditto democrats
     "hours",
     "minutes",
     "list",
@@ -272,4 +289,3 @@ STOPWORDS = [
     "should",
     "now",
 ]
-
