@@ -1,5 +1,5 @@
 *.ipynb
-*.json
+.local_stats/
 venv
 __pycache__
 .aws-sam

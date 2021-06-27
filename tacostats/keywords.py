@@ -12,7 +12,7 @@ import nltk
 from markdown import Markdown
 from praw.reddit import Comment
 
-from tacostats import io
+from tacostats import statsio
 from tacostats.reddit import report
 from tacostats.reddit.dt import comments, recap, current
 from tacostats.config import RECAP, STOPWORDS, COMMON_WORDS, CHUNK_TYPES, BOT_TRIGGERS
@@ -39,7 +39,6 @@ def process_keywords():
     print("getting comments...")
     dt = recap() if RECAP else current()
     dt_comments = comments(dt)
-    s3_prefix = dt.date.strftime("%Y-%m-%d")
 
     print("processing comments...")
     processed = list(_process_comments(dt_comments))
@@ -55,7 +54,7 @@ def process_keywords():
     }
 
     print("writing stats...")
-    io.write(s3_prefix, keywords=keywords)
+    statsio.write(statsio.get_dt_prefix(dt.date), keywords=keywords)
 
     print("posting comment...")
     report.post(keywords, "keywords.md.j2")

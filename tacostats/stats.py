@@ -11,16 +11,14 @@ import emoji
 import pandas
 import pytz
 
-from tacostats import io
+from tacostats import statsio
 from tacostats.reddit import report
 from tacostats.reddit.dt import current, recap, comments
 
 NEUTER_RE = re.compile(r"!ping", re.MULTILINE | re.IGNORECASE | re.UNICODE)
 
-
 def lambda_handler(event, context):
     process_stats()
-
 
 def process_stats():
     """pull basic statistics from a thread's comments"""
@@ -34,8 +32,8 @@ def process_stats():
     full_stats, short_stats = _process_comments(dt_comments)
 
     print("writing results...")
-    io.write(
-        dt.date.strftime("%Y-%m-%d"),
+    statsio.write(
+        statsio.get_dt_prefix(dt.date),
         full_stats=full_stats,
         short_stats=short_stats,
     )

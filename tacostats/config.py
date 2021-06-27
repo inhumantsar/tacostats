@@ -8,18 +8,28 @@ from dotenv import load_dotenv
 
 load_dotenv(verbose=True)
 
+# data bucket
 S3_BUCKET = os.getenv("S3_BUCKET")
 print("S3_BUCKET set to ", S3_BUCKET)
+
+# don't write to s3 or post anything to reddit
 DRY_RUN = bool(strtobool(os.getenv("DRY_RUN", "False")))
 print("DRY_RUN set to ", DRY_RUN)
+
+# write stats locally as well as to s3
 LOCAL_STATS = bool(strtobool(os.getenv("LOCAL_STATS", "False")))
 print("LOCAL_STATS set to ", LOCAL_STATS)
+
+# only use what already exists in s3
 USE_EXISTING = bool(strtobool(os.getenv("USE_EXISTING", "False")))
 print("USE_EXISTING set to ", USE_EXISTING)
 
 # if true, look at yesterday's stats
 RECAP = bool(strtobool(os.getenv("RECAP", "False")))
 print("RECAP set to ", RECAP)
+
+# filename for full comments file, shared among all modules
+COMMENTS_KEY = "comments"
 
 secrets = boto3.client("secretsmanager")
 get_secret = lambda x: secrets.get_secret_value(SecretId=x)["SecretString"]

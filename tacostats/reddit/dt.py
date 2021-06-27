@@ -1,3 +1,5 @@
+from os import read
+from tacostats.statsio import get_dt_prefix
 import pytz
 
 from dataclasses import dataclass
@@ -8,8 +10,8 @@ from praw import Reddit
 from praw.models import Submission, Redditor
 from praw.reddit import Comment
 
-from tacostats.config import REDDIT, EXCLUDED_AUTHORS, USE_EXISTING
-from tacostats import io
+from tacostats import statsio
+from tacostats.config import COMMENTS_KEY, REDDIT, USE_EXISTING
 
 CREATE_TIME = time(hour=7, tzinfo=timezone.utc)
 
@@ -57,7 +59,7 @@ def comments(dt: DT) -> Generator[Dict[str, Any], None, None]:
     # existing comments files in s3 have already been processed
     if USE_EXISTING:
         print(f"reading comments already stored on s3 for {dt.date}")
-        yield from io.read_s3(prefix_date=dt.date)
+        yield from statsio.read_comments(prefix=get_dt_prefix(dt.date))
     else:
         print(f"reading comments direct from reddit for {dt.date}")
         for comment in _actually_get_comments(dt.submission):
@@ -82,10 +84,6 @@ def _process_raw_comment(comment: Comment, dt: DT) -> Union[None, Dict[str, Any]
 
     # author is a touchy field
     author = _get_author_name(comment.author)
-
-    # skip over comments by bots, etc
-    # if author in EXCLUDED_AUTHORS:
-    #     return None
 
     # deleted, removed, etc comments have no author
     if not author:
