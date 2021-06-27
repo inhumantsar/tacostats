@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  tacostats v1.1.1
+  tacostats v1.1.2
 
   periodically grab comments from the r/neoliberal DT and gather some basic statistics
 
@@ -19,7 +19,7 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 256
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.1.1
+      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.1.2
       ImageConfig:
         Command: 
           - tacostats.harvester.lambda_handler
@@ -41,7 +41,7 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 256
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.1.1
+      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.1.2
       ImageConfig:
         Command: 
           - tacostats.harvester.lambda_handler
@@ -67,7 +67,7 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 256
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.1.1
+      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.1.2
       ImageConfig:
         Command: 
           - tacostats.stats.lambda_handler
@@ -92,7 +92,7 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 256
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.1.1
+      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.1.2
       ImageConfig:
         Command: 
           - tacostats.stats.lambda_handler
@@ -120,7 +120,7 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 384
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.1.1
+      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.1.2
       ImageConfig:
         Command: 
           - tacostats.keywords.lambda_handler
@@ -145,7 +145,7 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 384
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.1.1
+      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.1.2
       ImageConfig:
         Command: 
           - tacostats.keywords.lambda_handler
