@@ -2,7 +2,7 @@ import re
 from typing import Any, Dict, Iterable, List, Tuple
 
 from pandas.core.frame import DataFrame
-from tacostats.config import RECAP
+from tacostats.config import EXCLUDED_AUTHORS, RECAP
 import regex  # supports grapheme search
 
 from datetime import datetime, timezone
@@ -51,6 +51,9 @@ def process_stats():
 def _process_comments(dt_comments: Iterable[Dict[str, Any]]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """build a full dataset and a short dataset from a list of comments"""
     cdf = pandas.DataFrame(dt_comments) # type: ignore
+
+    print('removing bot comments...')
+    cdf = cdf[~cdf.author.isin(EXCLUDED_AUTHORS)]
 
     print('counting bad authors...')
     deleted, removed, other = _find_bad_author_counts(cdf)
@@ -105,17 +108,13 @@ def _build_short_stats(full_stats: dict) -> dict:
     for k, v in full_stats.items():
         # don't try to truncate anything that's not a list
         if not isinstance(v, list):
-            # print(f"{k} is not a list, adding it to short stats as is.")
             short_stats[k] = v
-        # keep all the hourly records
         elif k.startswith("hourly") or k == "activity":
-            # print(f"{k} is hourly or activity data, adding it to short stats as is.")
+            # keep all the hourly records
             short_stats[k] = v
         elif k == "top_emoji":
-            # normally only use the top 75%
-            trunc = round(len(v) * 0.8)
-            # print(f"{k} found, truncating to {trunc}")
-            short_stats[k] = v[:trunc]
+            # keep at most 150 of the top emoji
+            short_stats[k] = v[:min(len(v), 150)]
         else:
             # print(f"{k} found, truncating to top 3")
             short_stats[k] = v[:3]

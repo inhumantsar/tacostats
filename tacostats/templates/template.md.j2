@@ -39,17 +39,13 @@
 
 #### 🐊 {{ yester() }} Favourite Emoji
 
-{% set platinum = (top_emoji|length * 0.05)|round(0, 'floor')|int -%}
 {%- set gold = (top_emoji|length * 0.1)|round(0, 'floor')|int -%}
-{%- set silver = (top_emoji|length * 0.2)|round(0, 'floor')|int -%}
-{%- set bronze = (top_emoji|length * 0.4)|round(0, 'floor')|int -%}
+{%- set silver = (top_emoji|length * 0.3)|round(0, 'floor')|int %}
 
 # {{ top_emoji[0][1] }} with {{ top_emoji[0][0] }} uses.
-## {% for i in top_emoji[1:platinum] %}{{ i[1] }} {{ i[0] }} {% endfor %}
-### {% for i in top_emoji[platinum:gold] %}{{ i[1] }} {{ i[0] }} {% endfor %}
-#### {% for i in top_emoji[gold:silver] %}{{ i[1] }} {% endfor %}
-##### {% for i in top_emoji[silver:bronze] %}{{ i[1] }} {% endfor %}
-###### {% for i in top_emoji[bronze:] %}{{ i[1] }} {% endfor %}
+## {% for i in top_emoji[1:gold] %}{{ i[1] }} {{ i[0] }} {% endfor %}
+### {% for i in top_emoji[gold:silver] %}{{ i[1] }} {{ i[0] }} {% endfor %}
+#### {% for i in top_emoji[silver:] %}{{ i[1] }} {% endfor %}
 
 #### 🕓 {{ yester() }} Activity
 
@@ -65,7 +61,9 @@
 Additionally, {{ other_blank }} other removed comments were found. These were likely posted by now-deleted or shadowbanned users, or they were hit by the spam filters. 
 
 
+{# feedback section
 #### ❓ *Feedback Wanted:* [How often should I post these stats?](https://www.strawpoll.me/45371264)
+#}
 
 ---
 
