@@ -53,7 +53,8 @@ def _process_comments(dt_comments: Iterable[Dict[str, Any]]) -> Tuple[Dict[str, 
     cdf = pandas.DataFrame(dt_comments) # type: ignore
 
     print('removing bot comments...')
-    cdf = cdf[~cdf.author.isin(EXCLUDED_AUTHORS)]
+    # pandas syntax is dumb so pylance (rightly) thinks this returns a series
+    cdf: DataFrame = cdf[~cdf.author.isin(EXCLUDED_AUTHORS)] # type: ignore
 
     print('counting bad authors...')
     deleted, removed, other = _find_bad_author_counts(cdf)
