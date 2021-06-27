@@ -1,16 +1,12 @@
 #### 🔍 {% if YESTER %}Yesterday's{% else %}Today's{% endif %} Top Keywords
 
-# {% for i in range(keywords_h1|length) %}{{ keywords_h1[i] }} {% if i < (keywords_h1|length-1) %}/{% endif %} {% endfor %}
+# {% for i in range(keywords_h1|length) %}{{ keywords_h1[i] }} {% if i < (keywords_h2|length-1) %}/{% endif %} {% endfor %}
 
-## {% for i in range(keywords_h2|length) %}{{ keywords_h2[i] }} {% if i < (keywords_h2|length-1) %}/{% endif %} {% endfor %}
+## {% for i in range(keywords_h2|length) %}{{ keywords_h2[i] }} {% if i < (keywords_h3|length-1) %}/{% endif %} {% endfor %}
 
-### {% for i in range(keywords_h3|length) %}{{ keywords_h3[i] }} {% if i < (keywords_h3|length-1) %}/{% endif %} {% endfor %}
+### {% for i in range(keywords_h3|length) %}{{ keywords_h3[i] }} {% if i < (keywords_h4|length-1) %}/{% endif %} {% endfor %}
 
-#### {% for i in range(keywords_h4|length) %}{{ keywords_h4[i] }} {% if i < (keywords_h4|length-1) %}/{% endif %} {% endfor %}
-
-##### {% for i in range(keywords_h5|length) %}{{ keywords_h5[i] }} {% if i < (keywords_h5|length-1) %}/{% endif %} {% endfor %}
-
-###### {% for i in range(keywords_h6|length) %}{{ keywords_h6[i] }} {% if i < (keywords_h6|length-1) %}/{% endif %} {% endfor %}
+#### {% for i in range(keywords_h4|length) %}{{ keywords_h4[i] }} {% if i < (keywords_h5|length-1) %}/{% endif %} {% endfor %}
 
 #### ❓ *Feedback Wanted:* What which of these words should be ignored in the future? Tell me in the comments 👇
 
