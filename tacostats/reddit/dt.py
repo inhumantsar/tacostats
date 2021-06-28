@@ -27,10 +27,13 @@ class DT:
     def date(self) -> date:
         return datetime.utcfromtimestamp(self.submission.created_utc).date()        
 
-
+def get_comment(id: str) -> Comment:
+    """Return a PRAW Comment for replying to."""
+    return reddit_client.comment(id)
+    
 def recap(daysago=1) -> DT:
     """Get a dt from the past. Raises a KeyError"""
-    target_date = _build_target_date(daysago)
+    target_date = get_target_date(daysago)
     print("looking for old dt, target: ", target_date)
 
     QUERY = 'title:"Discussion Thread" author:jobautomator'
@@ -59,7 +62,7 @@ def comments(dt: DT) -> Generator[Dict[str, Any], None, None]:
     # existing comments files in s3 have already been processed
     if USE_EXISTING:
         print(f"reading comments already stored on s3 for {dt.date}")
-        yield from statsio.read_comments(prefix=get_dt_prefix(dt.date))
+        yield from statsio.read_comments(dt_date=dt.date)
     else:
         print(f"reading comments direct from reddit for {dt.date}")
         for comment in _actually_get_comments(dt.submission):
@@ -103,8 +106,9 @@ def _process_raw_comment(comment: Comment, dt: DT) -> Union[None, Dict[str, Any]
     except Exception as e:
         print(f"{comment.id}: {e}")    
 
-def _build_target_date(daysago: int) -> date:
-    """Returns a date in the past to look for"""
+
+def get_target_date(daysago: int) -> date:
+    """Returns a past DT's date from N days ago"""
     current_utc = datetime.now().astimezone(timezone.utc)
 
     # DTs are created by jobautomator automatically at 2ET

@@ -165,3 +165,27 @@ Resources:
       Dockerfile: lambda.Dockerfile
       DockerContext: "."
 
+  ###############
+  # UserStats
+  ###############
+  UserStats:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      PackageType: Image
+      MemorySize: 256
+      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.1.4
+      ImageConfig:
+        Command: 
+          - tacostats.userstats.lambda_handler
+      Role: arn:aws:iam::676444348764:role/tacostats
+      Events:
+        # Queue:
+        #   Type: SQS
+        #   Properties:
+        #     Queue: arn:aws:sqs:us-west-2:012345678901:my-queue
+        #     BatchSize: 10
+        #     Enabled: false
+    Metadata:
+      Dockerfile: lambda.Dockerfile
+      DockerContext: "."
+

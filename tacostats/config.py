@@ -31,6 +31,9 @@ print("RECAP set to ", RECAP)
 # filename for full comments file, shared among all modules
 COMMENTS_KEY = "comments"
 
+# how far back into a user's DT history to compile stats on
+USERSTATS_HISTORY = int(os.getenv("USERSTATS_HISTORY", 7))
+
 secrets = boto3.client("secretsmanager")
 get_secret = lambda x: secrets.get_secret_value(SecretId=x)["SecretString"]
 

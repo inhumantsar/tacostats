@@ -1,21 +1,16 @@
 import re
+
 from typing import Any, Dict, Iterable, List, Tuple
-
-from pandas.core.frame import DataFrame
-from tacostats.config import EXCLUDED_AUTHORS, RECAP
-import regex  # supports grapheme search
-
 from datetime import datetime, timezone
 
-import emoji
 import pandas
-import pytz
 
+from pandas import DataFrame
 from tacostats import statsio
+from tacostats.config import EXCLUDED_AUTHORS, RECAP
 from tacostats.reddit import report
 from tacostats.reddit.dt import current, recap, comments
-
-NEUTER_RE = re.compile(r"!ping", re.MULTILINE | re.IGNORECASE | re.UNICODE)
+from tacostats.util import build_time_indexed_df, find_emoji, neuter_ping
 
 def lambda_handler(event, context):
     process_stats()
@@ -61,12 +56,12 @@ def _process_comments(dt_comments: Iterable[Dict[str, Any]]) -> Tuple[Dict[str, 
     cdf = cdf[cdf["author"] != ""]
 
     print("adding derived columns...")
-    cdf["emoji_count"] = cdf["body"].apply(lambda x: len(_find_emoji(x)))
+    cdf["emoji_count"] = cdf["body"].apply(lambda x: len(find_emoji(x)))
     cdf["word_count"] = cdf["body"].str.count(" ") + 1
 
     # prep time-indexed dataframe
     print("creating time-indexed dataframe...")
-    tdf = _build_time_indexed_df(cdf)
+    tdf = build_time_indexed_df(cdf)
 
     # build new dataframes used in other metrics
     print("creating spammiest dataframe...")
@@ -86,7 +81,7 @@ def _process_comments(dt_comments: Iterable[Dict[str, Any]]) -> Tuple[Dict[str, 
         "wordiest_overall": wordiest.to_dict("records"),
         "wordiest": _find_wordiest_per_comment(wordiest, spammiest),
         # neuter upvoted comments to prevent pinging groupbot
-        "upvoted_comments": [_neuter_ping(c) for c in _find_upvoted_comments(cdf)],
+        "upvoted_comments": [neuter_ping(c) for c in _find_upvoted_comments(cdf)],
         "upvoted_redditors": upvoted_redditors.to_dict("records"),
         "best_redditors": _find_avg_scores(upvoted_redditors, spammiest),
         # "memeiest": memeiest_full,
@@ -94,7 +89,7 @@ def _process_comments(dt_comments: Iterable[Dict[str, Any]]) -> Tuple[Dict[str, 
         "hourly_wordiest": _find_wordiest_by_hour(tdf),
         "hourly_spammiest": _find_spammiest_by_hour(tdf),
         "emoji_spammers": _find_emoji_spammers(cdf),
-        "top_emoji": _find_top_emoji(cdf),
+        "top_emoji": find_top_emoji(cdf),
     }
 
     return full_stats, _build_short_stats(full_stats)
@@ -120,14 +115,6 @@ def _build_short_stats(full_stats: dict) -> dict:
 
     return short_stats
 
-
-def _build_time_indexed_df(cdf: DataFrame) -> DataFrame:
-    """Copies the basic dataframe and indexes it along creation time in EST"""
-    tdf = cdf.copy(deep=True)
-    tdf["created_utc"] = tdf["created_utc"].apply(_from_utc_to_est)
-    tdf.rename(columns={"created_utc": "created_et"}, inplace=True)
-    tdf.set_index("created_et", inplace=True)
-    return tdf
 
 
 def _find_wordiest_per_comment(wordiest: DataFrame, spammiest: DataFrame) -> List[dict]:
@@ -293,25 +280,17 @@ def _find_emoji_spammers(cdf: DataFrame) -> List[dict]:
     )
 
 
-def _find_top_emoji(cdf: DataFrame) -> List[list]:
+def find_top_emoji(cdf: DataFrame) -> List[List]:
     """Returns a list of the most used emoji
 
     Returns:
         [[<count>, <emoji>], ...]
     """
-    top_emoji = cdf["body"].apply(_find_emoji)
+    top_emoji = cdf["body"].apply(find_emoji)
     top_emoji = (
         top_emoji.where(top_emoji.str.len() > 0).dropna().explode().value_counts() # type: ignore
     )
     return list(zip(top_emoji, top_emoji.index)) # type: ignore
-
-
-def _find_emoji(body: str) -> list:
-    """Returns all of the emoji, including combined characters, in a string"""
-    emojis = emoji.UNICODE_EMOJI_ENGLISH.keys()
-    # \X matches graphemes, ie: regular chars as well as combined chars like letter+ligature or 👨‍👩‍👦‍👦
-    matches = regex.findall(r"\X", body)
-    return [i for i in matches if i in emojis]
 
 
 # def _find_memeiest(df):
@@ -325,15 +304,6 @@ def _find_emoji(body: str) -> list:
 #     )
 #     return memeiest_df.to_dict("records")
 
-
-def _neuter_ping(comment):
-    comment["body"] = NEUTER_RE.sub("*ping", comment["body"])
-    return comment
-
-
-def _from_utc_to_est(created_utc) -> datetime:
-    as_utc = datetime.fromtimestamp(created_utc, tz=timezone.utc)
-    return as_utc.astimezone(pytz.timezone("US/Eastern"))
 
 
 if __name__ == "__main__":

@@ -1,10 +1,12 @@
 import json
+from boto3 import exceptions
 import regex
 
 from datetime import date
 from typing import Any, Dict, List, Union
 
 import boto3
+
 
 from tacostats.config import COMMENTS_KEY, S3_BUCKET
 
@@ -30,7 +32,11 @@ def read_comments(dt_date: Union[date, None]) -> List[Dict[str, Any]]:
 def read(prefix: str, key: str) -> Any:
     """Read json data stored in bucket."""
     print(f"reading {key} from s3 at {prefix}...")
-    json_str = _S3_CLIENT.get_object(Bucket=S3_BUCKET, Key=f"{prefix}/{key}.json")["Body"].read().decode()
+    try:
+        json_str = _S3_CLIENT.get_object(Bucket=S3_BUCKET, Key=f"{prefix}/{key}.json")["Body"].read().decode()
+    except _S3_CLIENT.exceptions.NoSuchKey as e:
+        raise KeyError(e)
+
     return json.loads(json_str)
 
 def get_dt_prefix(dt_date: Union[date,None] = None) -> str:
