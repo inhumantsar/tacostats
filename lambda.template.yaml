@@ -179,12 +179,12 @@ Resources:
           - tacostats.userstats.lambda_handler
       Role: arn:aws:iam::676444348764:role/tacostats
       Events:
-        # Queue:
-        #   Type: SQS
-        #   Properties:
-        #     Queue: arn:aws:sqs:us-west-2:012345678901:my-queue
-        #     BatchSize: 10
-        #     Enabled: false
+        Queue:
+          Type: SQS
+          Properties:
+            Queue: arn:aws:sqs:us-west-2:676444348764:tacostats-pinger
+            BatchSize: 10
+            Enabled: false
     Metadata:
       Dockerfile: lambda.Dockerfile
       DockerContext: "."
