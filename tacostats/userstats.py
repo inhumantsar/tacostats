@@ -6,6 +6,7 @@ from typing import Any, Dict, Generator, List, Tuple, Union
 import boto3
 import json
 import numpy
+import pandas
 import pytz
 
 from pandas import DataFrame
@@ -96,5 +97,5 @@ def _generate_user_comments(username: str, dt_date: date) -> Generator[Dict[str,
 
 
 if __name__ == "__main__":
-    process_userstats("bd_one", "h39l3vg")
+    process_userstats("SaltySaladHatesJanny", "h3ak825")
 
