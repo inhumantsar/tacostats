@@ -171,6 +171,7 @@ Resources:
   UserStats:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
+      Timeout: 30
       PackageType: Image
       MemorySize: 256
       ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.2.2
@@ -184,7 +185,7 @@ Resources:
           Properties:
             Queue: arn:aws:sqs:us-west-2:676444348764:tacostats-pinger
             BatchSize: 10
-            Enabled: false
+            Enabled: true
     Metadata:
       Dockerfile: lambda.Dockerfile
       DockerContext: "."

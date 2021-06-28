@@ -25,14 +25,16 @@ def lambda_handler(event, context):
     # Receive message from SQS queue
     # expecting a message like `[username, comment_id, days]`
     for record in event['Records']:
-        username, comment_id, days = json.loads(record['body'])
-        process_userstats(username, comment_id, days)
+        data = json.loads(record['body'])
+        process_userstats(data['username'], data['comment_id'], data['days'])
         
 
 def process_userstats(username: str, comment_id: str, days: int = 7):
     """dt stats but for a single user"""
+    print("starting userstats with", username, days, comment_id)
     # get all comments by a single author
     df = DataFrame(_generate_author_comments(username, days)) # type: ignore
+    print(df.count())
 
     results = {    
         'comments_per_day': _get_comments_per_day(df),
@@ -97,5 +99,5 @@ def _generate_user_comments(username: str, dt_date: date) -> Generator[Dict[str,
 
 
 if __name__ == "__main__":
-    process_userstats("SaltySaladHatesJanny", "h3ak825")
+    process_userstats("inhumantsar", "h3ak825")
 

@@ -42,5 +42,9 @@ Resources:
               - s3:GetObject
               - s3:DeleteObject
             Resource: 'arn:aws:s3:::tacostats-data/*'
+          - Effect: Allow
+            Action:
+              - sqs:*
+            Resource: 'arn:aws:sqs:us-west-2:676444348764:tacostats-pinger'
       Roles: 
         - Ref: RootRole

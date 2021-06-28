@@ -21,6 +21,7 @@ def find_emoji(body: str) -> list:
 def build_time_indexed_df(df: DataFrame) -> DataFrame:
     """Copies the basic dataframe and indexes it along creation time in EST"""
     tdf = df.copy(deep=True)
+    print(tdf.columns)
     tdf["created_utc"] = tdf["created_utc"].apply(from_utc_to_est)
     tdf.rename(columns={"created_utc": "created_et"}, inplace=True)
     tdf.set_index("created_et", inplace=True)
