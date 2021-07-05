@@ -15,7 +15,7 @@ from praw.reddit import Comment
 from tacostats import statsio
 from tacostats.reddit import report
 from tacostats.reddit.dt import comments, recap, current
-from tacostats.config import RECAP, STOPWORDS, COMMON_WORDS, CHUNK_TYPES, BOT_TRIGGERS
+from tacostats.config import RECAP, STOPWORDS, COMMON_WORDS, CHUNK_TYPES, BOT_TRIGGERS, EXCLUDED_AUTHORS
 
 # before importing pattern need to download the reqd corpora to /tmp, but only in remote Lambda
 # for whatever reason, this doesn't appear to be necessary locally, even using sam invoke
@@ -116,6 +116,11 @@ def _score_chunk(chunk) -> float:
 def _process_comments(comments: Iterable[Dict[str,str]]) -> List[Tuple[str,float]]:
     """pull significant keywords from comment list"""
     cdf = pandas.DataFrame(comments) # type: ignore
+
+    print('removing bot comments...')
+    # pandas syntax is dumb so pylance (rightly) thinks this returns a series
+    cdf: DataFrame = cdf[~cdf.author.isin(EXCLUDED_AUTHORS)] # type: ignore
+
     print(f"got {cdf.count()} comments")
     
     # parse each comment, sorting the results by score
