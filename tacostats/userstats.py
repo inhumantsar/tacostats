@@ -23,7 +23,7 @@ def lambda_handler(event, context):
     sqs = boto3.client('sqs')
 
     # Receive message from SQS queue
-    # expecting a message like `[username, comment_id, days]`
+    # expecting a message like `{username, requester_comment_id, days}`
     for record in event['Records']:
         data = json.loads(record['body'])
         process_userstats(data['username'], data['requester_comment_id'], data['days'])
@@ -35,11 +35,12 @@ def process_userstats(username: str, comment_id: str, days: int = 7):
     # get all comments by a single author
     df = DataFrame(_generate_author_comments(username, days)) # type: ignore
     print(df.count())
-
+    
+    top_emoji = find_top_emoji(df)
     results = {    
         'comments_per_day': _get_comments_per_day(df),
         'words_per_comment': _get_words_per_comment(df),
-        'top_emoji': find_top_emoji(df)[0],
+        'top_emoji': top_emoji[0] if len(top_emoji) > 0 else None,
         'top_comment': _get_top_comment(df),
         'average_score': _get_average_score(df),
         'username': username
