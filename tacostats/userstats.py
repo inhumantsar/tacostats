@@ -26,7 +26,7 @@ def lambda_handler(event, context):
     # expecting a message like `[username, comment_id, days]`
     for record in event['Records']:
         data = json.loads(record['body'])
-        process_userstats(data['username'], data['comment_id'], data['days'])
+        process_userstats(data['username'], data['requester_comment_id'], data['days'])
         
 
 def process_userstats(username: str, comment_id: str, days: int = 7):
