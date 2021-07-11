@@ -1,6 +1,6 @@
 Over the last week, **{{ username }}** wrote around **{{ comments_per_day['mean']|round(0) }} comments per day**, peaking at **{{ comments_per_day['max'] }} comments {{ comments_per_day['max_day'] }}**. 
 **{{ username }}**'s comments were **{{ words_per_comment['mean']|round(0) }} words long** on average but their longest comment had **{{ words_per_comment['max'] }} words**. 
-{% if top_emoji %}With **{{ top_emoji[0] }} uses**, **{{ top_emoji[1] }}** was {{ username }}'s favourite emoji.{% else %}They didn't use any emoji this past week, probably because {{ username }} is **old** and **boring**.{% endif %}  
+{% if top_emoji %}With **{{ top_emoji[0] }} uses**, **{{ top_emoji[1] }}** was {{ username }}'s favourite emoji.{% else %}They didn't use any emoji this past week, probably because {{ username }} is **old** and **boring**.{% endif -%}  
 While their comments scored an average of **{{ average_score|round(1) }} points**, **{{ username }}**'s **[best comment had {{ top_comment['score'] }} points](https://reddit.com{{ top_comment['permalink'] }})**.
 
 ---
