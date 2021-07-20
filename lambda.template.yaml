@@ -29,7 +29,7 @@ Resources:
         Cron:
           Type: Schedule
           Properties:
-            Schedule: cron(5/10 * * * ? *)
+            Schedule: cron(55/30 * * * ? *)
             Enabled: True       
     Metadata:
       Dockerfile: lambda.Dockerfile
