@@ -6,7 +6,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Dict, Generator, List, Union
 
 from praw import Reddit
-from praw.models import Submission, Redditor
+from praw.models import Submission, Redditor, MoreComments
 from praw.reddit import Comment
 
 from tacostats import statsio
@@ -70,12 +70,21 @@ def comments(dt: DT) -> Generator[Dict[str, Any], None, None]:
         yield from statsio.read_comments(dt_date=dt.date)
     else:
         log.info(f"reading comments direct from reddit for {dt.date}")
-        for comment in _actually_get_comments(dt.submission):
-            if processed := _process_raw_comment(comment, dt):
-                yield processed
+        yield from _process_comments(dt, _actually_get_comments(dt.submission))
 
+def _process_comments(dt: DT, comments: List[Comment]) -> Generator[Dict[str, Any], None, None]:
+    for comment in comments:
+        # _actually_get_comments is supposed to replace all the MoreComments, but this is a backup
+        # it should log an error but continue on.
+        if isinstance(comment, MoreComments):
+            try:
+                yield from _process_comments(dt, comment.comments())
+            except Exception as e:
+                log.exception(f"Unable to process MoreComments obj: ${comment}")
+        elif processed := _process_raw_comment(dt, comment):
+            yield processed
 
-def _process_raw_comment(comment: Comment, dt: DT) -> Union[None, Dict[str, Any]]:
+def _process_raw_comment(dt: DT, comment: Comment) -> Union[None, Dict[str, Any]]:
     """clean up comments and return a dictionary. 
     
     Args:
