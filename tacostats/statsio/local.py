@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 import json
 import os
 
@@ -8,25 +8,31 @@ from typing import Any, Dict, List, Union
 
 LOCAL_PATH = ".local_stats"
 
-def write(**kwargs):
+def write(prefix: str, **kwargs):
     """wrote local stats files. use kwargs keys for name, values for data"""
     print("writing local...")
-    Path(LOCAL_PATH).mkdir(parents=True, exist_ok=True)
+    parent = Path(LOCAL_PATH) / prefix
+    parent.mkdir(parents=True, exist_ok=True)
     for key, value in kwargs.items():
-        path = os.path.join(LOCAL_PATH, f"{key}.json")
+        path = parent / f"{key}.json"
         # _check_for_unserializable_shit(value)
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(json.dumps(value))
 
-def read(key: str) -> Any:
+def read(prefix: str, key: str) -> Any:
     """read local stats file"""
-    path = os.path.join(LOCAL_PATH, f"{key}.json")
+    path = Path(LOCAL_PATH) / prefix / f"{key}.json"
     with open(path, encoding="utf-8") as fh:
         return json.loads(fh.read())
 
-def read_comments() -> List[Dict[str, Any]]:
+def read_comments(prefix: str) -> List[Dict[str, Any]]:
     """read local comments file"""
-    return read(COMMENTS_KEY)
+    return read(prefix, COMMENTS_KEY)
+
+def get_age(prefix: str, key: str) -> int:
+    """get number of seconds since object was last modified"""
+    path = Path(LOCAL_PATH) / prefix / f"{key}.json"
+    return int(path.stat().st_mtime - datetime.now().timestamp())
 
 def _check_for_unserializable_shit(value):
     """only enabled during debugging. ignore me."""

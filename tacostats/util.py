@@ -36,3 +36,5 @@ def from_utc_to_est(created_utc) -> datetime:
     as_utc = datetime.fromtimestamp(created_utc, tz=timezone.utc)
     return as_utc.astimezone(pytz.timezone("US/Eastern"))
 
+def now() -> int:
+    return int(datetime.now(tz=timezone.utc).timestamp())

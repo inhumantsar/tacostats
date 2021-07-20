@@ -1,5 +1,5 @@
 import json
-from boto3 import exceptions
+import logging
 import regex
 
 from datetime import date
@@ -7,11 +7,20 @@ from typing import Any, Dict, List, Union
 
 import boto3
 
+from boto3 import exceptions
 
+from tacostats import util
 from tacostats.config import COMMENTS_KEY, S3_BUCKET
 
-_S3_CLIENT = boto3.client("s3")
 _PREFIX_REGEX = regex.compile(r"\d{4}-\d{2}-\d{2}")
+
+logging.basicConfig(level=logging.DEBUG)
+log = logging.getLogger(__name__)
+logging.getLogger("praw").setLevel(logging.WARNING)
+logging.getLogger("prawcore").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
+
 
 def write(prefix: str, **kwargs):
     """write data to s3.
@@ -20,10 +29,11 @@ def write(prefix: str, **kwargs):
         prefix - s3 "path" to write to. must not include trailing slash.
         kwargs - key is s3 "filename" to write, value is json-serializable data.
     """
-    print("writing to s3...")
     for key, value in kwargs.items():
-        _S3_CLIENT.put_object(
-            Body=str(json.dumps(value)), Bucket=S3_BUCKET, Key=f"{prefix}/{key}.json"
+        s3_key = f"{prefix}/{key}.json"
+        log.info(f"writing to s3: {s3_key}")
+        boto3.client("s3").put_object(
+            Body=str(json.dumps(value)), Bucket=S3_BUCKET, Key=s3_key
         )
 
 def read_comments(dt_date: Union[date, None]) -> List[Dict[str, Any]]:
@@ -32,12 +42,27 @@ def read_comments(dt_date: Union[date, None]) -> List[Dict[str, Any]]:
 def read(prefix: str, key: str) -> Any:
     """Read json data stored in bucket."""
     print(f"reading {key} from s3 at {prefix}...")
+    s3 = boto3.client("s3")
     try:
-        json_str = _S3_CLIENT.get_object(Bucket=S3_BUCKET, Key=f"{prefix}/{key}.json")["Body"].read().decode()
-    except _S3_CLIENT.exceptions.NoSuchKey as e:
+        json_str = s3.get_object(
+            Bucket=S3_BUCKET, 
+            Key=f"{prefix}/{key}.json"
+        )
+    except s3.exceptions.NoSuchKey as e:
         raise KeyError(e)
 
-    return json.loads(json_str)
+    return json.loads(json_str["Body"].read().decode())
+
+def get_age(prefix: str, key: str):
+    """get number of seconds since object was last modified"""
+    objects = boto3.client("s3").list_objects_v2(Bucket=S3_BUCKET, Prefix=f"{prefix}/{key}")
+    
+    if objects['KeyCount'] == 0:
+        raise KeyError(f"Unable to find an object matching {prefix}/{key}*")
+    elif objects['KeyCount'] > 1:
+        log.warning(f"{objects['KeyCount']} objects found matching {prefix}/{key}*, ignoring all but the first.")
+
+    return util.now() - int(objects['Contents'][0]["LastModified"].timestamp())
 
 def get_dt_prefix(dt_date: Union[date,None] = None) -> str:
     """Format dt s3 prefix using date. grabs the latest from s3 if no date is provided."""
@@ -47,14 +72,15 @@ def get_dt_prefix(dt_date: Union[date,None] = None) -> str:
         return get_latest_dt_prefix()
 
 def get_latest_dt_prefix() -> str:
-    s3_listing = _S3_CLIENT.list_objects_v2(
+    s3_listing = boto3.client("s3").list_objects_v2(
         Bucket='tacostats-data',
         Delimiter='/',
+        # TODO: worry about this in 3 years
         MaxKeys=1000,
     )['CommonPrefixes']
     filtered = [i['Prefix'] for i in s3_listing if _PREFIX_REGEX.math(i['Prefix'])]
     prefix = sorted(filtered, reverse=True)[0]
-    print(f"got latest daily s3 prefix: {prefix}")
+    log.debug(f"got latest daily s3 prefix: {prefix}")
     return prefix
 
 
