@@ -1,5 +1,4 @@
-from os import read
-from tacostats.statsio import get_dt_prefix
+import logging
 import pytz
 
 from dataclasses import dataclass
@@ -11,9 +10,16 @@ from praw.models import Submission, Redditor
 from praw.reddit import Comment
 
 from tacostats import statsio
-from tacostats.config import COMMENTS_KEY, REDDIT, USE_EXISTING
+from tacostats.config import REDDIT, USE_EXISTING
 
 CREATE_TIME = time(hour=7, tzinfo=timezone.utc)
+
+logging.basicConfig(level=logging.DEBUG)
+log = logging.getLogger(__name__)
+logging.getLogger("praw").setLevel(logging.WARNING)
+logging.getLogger("prawcore").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
 
 reddit_client = Reddit(**REDDIT)
 
@@ -34,12 +40,12 @@ def get_comment(id: str) -> Comment:
 def recap(daysago=1) -> DT:
     """Get a dt from the past. Raises a KeyError"""
     target_date = get_target_date(daysago)
-    print("looking for old dt, target: ", target_date)
+    log.info("looking for old dt, target: ", target_date)
 
     QUERY = 'title:"Discussion Thread" author:jobautomator'
     for submission in reddit_client.subreddit("neoliberal").search(QUERY, sort="new"):
         if not submission:
-            print(f"submission is falsey: {submission}")
+            log.debug(f"submission is falsey: {submission}")
         dt = DT(submission)
         if target_date == dt.date:
             return dt
@@ -58,13 +64,12 @@ def current() -> DT:
 
 def comments(dt: DT) -> Generator[Dict[str, Any], None, None]:
     """Find the appropriate DT and slurp its comments"""
-    print(f"getting comments...")
     # existing comments files in s3 have already been processed
     if USE_EXISTING:
-        print(f"reading comments already stored on s3 for {dt.date}")
+        log.info(f"reading comments already stored on s3 for {dt.date}")
         yield from statsio.read_comments(dt_date=dt.date)
     else:
-        print(f"reading comments direct from reddit for {dt.date}")
+        log.info(f"reading comments direct from reddit for {dt.date}")
         for comment in _actually_get_comments(dt.submission):
             if processed := _process_raw_comment(comment, dt):
                 yield processed
@@ -82,7 +87,7 @@ def _process_raw_comment(comment: Comment, dt: DT) -> Union[None, Dict[str, Any]
     cdt = datetime.fromtimestamp(comment.created_utc, tz=pytz.utc)
     eodt = datetime.combine(dt.date + timedelta(days=1), CREATE_TIME, tzinfo=pytz.utc)
     if cdt > eodt:
-        print(f"comment too new: {comment} {cdt}")
+        log.debug(f"comment too new: {comment} {cdt}")
         return None
 
     # author is a touchy field
@@ -104,7 +109,7 @@ def _process_raw_comment(comment: Comment, dt: DT) -> Union[None, Dict[str, Any]
             "created_utc": comment.created_utc,
         }
     except Exception as e:
-        print(f"{comment.id}: {e}")    
+        log.exception(f"{comment.id}: {e}", exc_info=e)    
 
 
 def get_target_date(daysago: int) -> date:
@@ -133,12 +138,16 @@ def _is_dt(dt: Submission) -> bool:
 
 def _actually_get_comments(submission: Submission) -> List[Comment]:
     """Get all comments from submission"""
-    print("running replace_more... this will take a while...")
+    log.info("running replace_more... this will take a while...")
     start = datetime.now(timezone.utc)
     submission.comment_sort = "new"
     submission.comment_limit = 1000
-    submission.comments.replace_more(limit=None) # type: ignore
-    print(f"done in {(datetime.now(timezone.utc) - start).total_seconds()} seconds")
+    try:
+        submission.comments.replace_more(limit=None) # type: ignore
+    except AssertionError as ae:
+        log.exception(f"AssertionError: {ae}", exc_info=ae)
+
+    log.info(f"done in {(datetime.now(timezone.utc) - start).total_seconds()} seconds")
     return submission.comments.list()
 
 
