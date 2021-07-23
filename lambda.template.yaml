@@ -25,7 +25,6 @@ Resources:
           - tacostats.harvester.lambda_handler
       Role: arn:aws:iam::676444348764:role/tacostats
       Events:
-        # schedules in utc, et equivs: 12,16,21
         Cron:
           Type: Schedule
           Properties:
@@ -80,7 +79,7 @@ Resources:
         Cron:
           Type: Schedule
           Properties:
-            Schedule: cron(0 16,20,1 * * ? *)
+            Schedule: cron(0 16,22,1 * * ? *)
             Enabled: True       
     Metadata:
       Dockerfile: lambda.Dockerfile
@@ -129,11 +128,10 @@ Resources:
           USE_EXISTING: True
       Role: arn:aws:iam::676444348764:role/tacostats
       Events:
-        # schedules in utc, et equiv: 16,21
         Cron:
           Type: Schedule
           Properties:
-            Schedule: cron(17 20,1 * * ? *)
+            Schedule: cron(20 20 * * ? *) # et equiv: 16:20
             Enabled: True
     Metadata:
       Dockerfile: lambda.Dockerfile
