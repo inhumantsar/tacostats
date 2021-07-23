@@ -14,8 +14,11 @@ def write(prefix: str, **kwargs):
 
 def read(prefix: str, key: str) -> Any:
     """Read json file. Raises KeyError if the requested file can't be found."""
-    if LOCAL_STATS:
-        return local.read(prefix, key)
+    try:
+        if LOCAL_STATS:
+            return local.read(prefix, key)
+    except FileNotFoundError:
+        pass
     return s3.read(prefix, key=key)
 
 def read_comments(dt_date: Union[None, date] = None) -> List[Dict[str, Any]]:
@@ -25,3 +28,8 @@ def read_comments(dt_date: Union[None, date] = None) -> List[Dict[str, Any]]:
 def read_user_comments(username: str, dt_date: Union[None, date] = None) -> List[Dict[str, Any]]:
     """Read user comments for a particular day"""
     return read(get_dt_prefix(dt_date), username)
+
+def get_age(prefix: str, key: str) -> int:
+    if LOCAL_STATS:
+        return local.get_age(prefix, key)
+    return s3.get_age(prefix, key=key)

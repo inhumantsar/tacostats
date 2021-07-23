@@ -45,7 +45,6 @@
 # {{ top_emoji[0][1] }} with {{ top_emoji[0][0] }} uses.
 ## {% for i in top_emoji[1:gold] %}{{ i[1] }} {{ i[0] }} {% endfor %}
 ### {% for i in top_emoji[gold:silver] %}{{ i[1] }} {{ i[0] }} {% endfor %}
-#### {% for i in top_emoji[silver:] %}{{ i[1] }} {% endfor %}
 
 #### 🕓 {{ yester() }} Activity
 
@@ -56,13 +55,17 @@
 {% for i in range(activity|length - 1) %}| {{ clocks[i] }} | {{ '█' * ((activity[i] * 15 + 1)|round|int) }} | **{{ hourly_spammiest[i]['author'] }}** ({{ hourly_spammiest[i]['comment_count'] }} comments) |
 {% endfor %}
 
+#### 🙋 {{unique_users}} unique Redditors sporting {{flair_population['flaired']|length}} different flairs were spotted on the DT.
+
+{{flair_population['flaired'][0][1]}} was the most popular flair with {{flair_population['flaired'][0][0]}} unique Redditors, followed by {{flair_population['flaired'][1][1]}} ({{flair_population['flaired'][1][0]}}) and {{flair_population['flaired'][2][1]}} ({{flair_population['flaired'][2][0]}}).
+
+{{flair_population['unflaired']}} Redditors were caught not wearing any flair at all.
+
 #### 🗑️ {{ deleted }} deleted, ❌ {{ removed }} fashed comments.
 
-Additionally, {{ other_blank }} other removed comments were found. These were likely posted by now-deleted or shadowbanned users, or they were hit by the spam filters. 
-
-{# 
+{#- 
 #### ❕ *I can be pinged now!* Try commenting on someone's comment with `!stats` or add `my` to get your own data, ie: `!mystats`.
-#}
+-#}
 
 ---
 

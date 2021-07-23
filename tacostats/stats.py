@@ -1,4 +1,5 @@
 import re
+import random
 
 from typing import Any, Dict, Iterable, List, Tuple
 from datetime import datetime, timezone
@@ -11,6 +12,8 @@ from tacostats.config import EXCLUDED_AUTHORS, RECAP
 from tacostats.reddit import report
 from tacostats.reddit.dt import current, recap, comments
 from tacostats.util import build_time_indexed_df, find_emoji, neuter_ping
+
+_FLAIRMOJI_REGEX = re.compile(r'.*(\:[\-\w]+\:)\s(.*)')
 
 def lambda_handler(event, context):
     process_stats()
@@ -70,6 +73,8 @@ def _process_comments(dt_comments: Iterable[Dict[str, Any]]) -> Tuple[Dict[str, 
     wordiest = _find_wordiest(cdf)
     print("creating upvoted_redditors dataframe...")
     upvoted_redditors = _find_upvoted_redditors(cdf)
+    print("creating unique_users dataframe...")
+    unique_users = _find_unique_users(cdf)
 
     # build stats dicts
     print("building full_stats dict...")
@@ -90,6 +95,8 @@ def _process_comments(dt_comments: Iterable[Dict[str, Any]]) -> Tuple[Dict[str, 
         "hourly_spammiest": _find_spammiest_by_hour(tdf),
         "emoji_spammers": _find_emoji_spammers(cdf),
         "top_emoji": find_top_emoji(cdf),
+        "unique_users": len(unique_users),
+        "flair_population": _find_flair_population(unique_users),
     }
 
     return full_stats, _build_short_stats(full_stats)
@@ -115,7 +122,34 @@ def _build_short_stats(full_stats: dict) -> dict:
 
     return short_stats
 
+def _extract_flairmoji(flair_text):
+    if not flair_text: return ""
 
+    try:
+        matches = _FLAIRMOJI_REGEX.match(flair_text)
+    except Exception as e:
+        print(e, flair_text)
+        return ""
+
+    if not matches:
+        # print(f"WARN: regex returned none: {flair_text}")
+        return ""
+
+    groups = matches.groups()
+    if len(groups) == 0:
+        print(f"WARN: no matches: {groups}")
+        return ""
+    return groups[1]
+
+def _find_flair_population(unique_users_df):
+    flairs = unique_users_df['author_flair_text'].apply(_extract_flairmoji).value_counts()
+    flair_list = [i for i in zip(flairs, flairs.index) if i[1]]
+    unflaired_count = int(flairs.at[''])
+    r = {'unflaired': unflaired_count, 'flaired': flair_list}
+    return r
+
+def _find_unique_users(df):
+    return df[['author', 'author_flair_text']].drop_duplicates(['author', 'author_flair_text'])
 
 def _find_wordiest_per_comment(wordiest: DataFrame, spammiest: DataFrame) -> List[dict]:
     """Find the users who used the most words per comment.
