@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  tacostats v1.2.15
+  tacostats v1.2.16
 
   periodically grab comments from the r/neoliberal DT and gather some basic statistics
 
@@ -19,11 +19,11 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 256
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.2.15
+      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16
       ImageConfig:
         Command: 
           - tacostats.harvester.lambda_handler
-      Role: arn:aws:iam::676444348764:role/tacostats
+      Role: arn:aws:iam::390721581096:role/tacostats
       Events:
         Cron:
           Type: Schedule
@@ -40,14 +40,14 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 256
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.2.15
+      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16
       ImageConfig:
         Command: 
           - tacostats.harvester.lambda_handler
       Environment:
         Variables:
           RECAP: True
-      Role: arn:aws:iam::676444348764:role/tacostats
+      Role: arn:aws:iam::390721581096:role/tacostats
       Events:
         Cron:
           Type: Schedule
@@ -66,11 +66,11 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 256
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.2.15
+      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16
       ImageConfig:
         Command: 
           - tacostats.stats.lambda_handler
-      Role: arn:aws:iam::676444348764:role/tacostats
+      Role: arn:aws:iam::390721581096:role/tacostats
       Environment:
         Variables:
           USE_EXISTING: True
@@ -91,7 +91,7 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 256
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.2.15
+      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16
       ImageConfig:
         Command: 
           - tacostats.stats.lambda_handler
@@ -99,7 +99,7 @@ Resources:
         Variables:
           RECAP: True
           USE_EXISTING: True
-      Role: arn:aws:iam::676444348764:role/tacostats
+      Role: arn:aws:iam::390721581096:role/tacostats
       Events:
         # schedules in utc, 9et
         Cron:
@@ -119,14 +119,14 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 384
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.2.15
+      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16
       ImageConfig:
         Command: 
           - tacostats.keywords.lambda_handler
       Environment:
         Variables:
           USE_EXISTING: True
-      Role: arn:aws:iam::676444348764:role/tacostats
+      Role: arn:aws:iam::390721581096:role/tacostats
       Events:
         Cron:
           Type: Schedule
@@ -143,7 +143,7 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 384
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.2.15
+      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16
       ImageConfig:
         Command: 
           - tacostats.keywords.lambda_handler
@@ -151,7 +151,7 @@ Resources:
         Variables:
           RECAP: True
           USE_EXISTING: True
-      Role: arn:aws:iam::676444348764:role/tacostats
+      Role: arn:aws:iam::390721581096:role/tacostats
       Events:
         # schedules in utc, 10et
         Cron:
@@ -166,25 +166,25 @@ Resources:
   ###############
   # UserStats
   ###############
-  UserStats:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
-    Properties:
-      Timeout: 30
-      PackageType: Image
-      MemorySize: 256
-      ImageUri: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.2.15
-      ImageConfig:
-        Command: 
-          - tacostats.userstats.lambda_handler
-      Role: arn:aws:iam::676444348764:role/tacostats
-      Events:
-        Queue:
-          Type: SQS
-          Properties:
-            Queue: arn:aws:sqs:us-west-2:676444348764:tacostats-pinger
-            BatchSize: 10
-            Enabled: true
-    Metadata:
-      Dockerfile: lambda.Dockerfile
-      DockerContext: "."
+  # UserStats:
+  #   Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  #   Properties:
+  #     Timeout: 30
+  #     PackageType: Image
+  #     MemorySize: 256
+  #     ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16
+  #     ImageConfig:
+  #       Command: 
+  #         - tacostats.userstats.lambda_handler
+  #     Role: arn:aws:iam::390721581096:role/tacostats
+  #     Events:
+  #       Queue:
+  #         Type: SQS
+  #         Properties:
+  #           Queue: arn:aws:sqs:us-east-2:390721581096:tacostats-pinger
+  #           BatchSize: 10
+  #           Enabled: true
+  #   Metadata:
+  #     Dockerfile: lambda.Dockerfile
+  #     DockerContext: "."
 

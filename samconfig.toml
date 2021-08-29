@@ -3,9 +3,9 @@ version = 0.1
 [default.deploy]
 [default.deploy.parameters]
 stack_name = "tacostats"
-s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-uecpxvcgek53"
+s3_bucket = "inhumantsar-tacostats-cfn"
 s3_prefix = "tacostats"
-region = "us-west-2"
+region = "us-east-2"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-image_repositories = ["UserStats=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.2.15", "Harvester=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.2.15", "HarvesterRecap=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.2.15", "Stats=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.2.15", "StatsRecap=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.2.15", "Keywords=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.2.15", "KeywordsRecap=676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats:v1.2.15"]
+image_repositories = ["Harvester=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16", "HarvesterRecap=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16", "Stats=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16", "StatsRecap=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16", "Keywords=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16", "KeywordsRecap=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16"]
