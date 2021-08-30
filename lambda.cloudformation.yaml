@@ -31,20 +31,20 @@ Resources:
           - Effect: Allow
             Action:
               - secretsmanager:GetSecretValue
-            Resource: 'arn:aws:secretsmanager:us-west-2:676444348764:secret:tacostats-*'
+            Resource: 'arn:aws:secretsmanager:us-east-2:390721581096:secret:tacostats-*'
           - Effect: Allow
             Action:
               - s3:ListBucket
-            Resource: 'arn:aws:s3:::tacostats-data'
+            Resource: 'arn:aws:s3:::tacostats-stats'
           - Effect: Allow
             Action: 
               - s3:PutObject
               - s3:GetObject
               - s3:DeleteObject
-            Resource: 'arn:aws:s3:::tacostats-data/*'
+            Resource: 'arn:aws:s3:::tacostats-stats/*'
           - Effect: Allow
             Action:
               - sqs:*
-            Resource: 'arn:aws:sqs:us-west-2:676444348764:tacostats-pinger'
+            Resource: 'arn:aws:sqs:us-east-2:390721581096:tacostats-pinger'
       Roles: 
         - Ref: RootRole

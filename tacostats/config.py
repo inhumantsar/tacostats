@@ -39,7 +39,7 @@ get_secret = lambda x: secrets.get_secret_value(SecretId=x)["SecretString"]
 
 REDDIT = {
     "client_id": os.getenv("REDDIT_ID", get_secret("tacostats-reddit-client-id")),
-    "client_secret": os.getenv("REDDIT_SECRET", get_secret("tacostats-reddit-secret")),
+    "client_secret": os.getenv("REDDIT_SECRET", get_secret("tacostats-reddit-client-secret")),
     "user_agent": os.getenv("REDDIT_UA"),
     "username": os.getenv("REDDIT_USER"),
     "password": os.getenv("REDDIT_PASS", get_secret("tacostats-reddit-password")),
@@ -49,6 +49,7 @@ EXCLUDED_AUTHORS = [
     "jobautomator",
     "AutoModerator",
     "EmojifierBot",
+    "EmojifierBotv2",
     "groupbot",
     "tacostats",
     "ShiversifyBot"
