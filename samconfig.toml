@@ -8,4 +8,4 @@ s3_prefix = "tacostats"
 region = "us-east-2"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-image_repositories = ["Harvester=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16", "HarvesterRecap=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16", "Stats=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16", "StatsRecap=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16", "Keywords=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16", "KeywordsRecap=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.2.16"]
+image_repositories = ["Harvester=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.3.0", "HarvesterRecap=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.3.0", "Stats=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.3.0", "StatsRecap=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.3.0", "Keywords=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.3.0", "KeywordsRecap=390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.3.0"]
