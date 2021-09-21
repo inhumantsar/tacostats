@@ -22,6 +22,7 @@ def write(prefix: str, **kwargs):
 def read(prefix: str, key: str) -> Any:
     """read local stats file"""
     path = Path(LOCAL_PATH) / prefix / f"{key}.json"
+    print("reading local stats file...")
     with open(path, encoding="utf-8") as fh:
         return json.loads(fh.read())
 

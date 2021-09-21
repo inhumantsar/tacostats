@@ -1,7 +1,8 @@
+from itertools import chain
 import re
 import random
 
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Dict, Generator, Iterable, List, Tuple
 from datetime import datetime, timezone
 
 import pandas
@@ -23,15 +24,15 @@ def process_stats():
     start = datetime.now(timezone.utc)
     print(f"process_stats started at {start}...")
 
-    dt = recap() if RECAP else current()
-    dt_comments = comments(dt)
+    dts = list(recap() if RECAP else current())
+    dt_comments = chain(*[comments(dt) for dt in dts])
 
     print("processing comments...")
     full_stats, short_stats = _process_comments(dt_comments)
 
     print("writing results...")
     statsio.write(
-        statsio.get_dt_prefix(dt.date),
+        statsio.get_dt_prefix(dts[0].date),
         full_stats=full_stats,
         short_stats=short_stats,
     )
@@ -44,7 +45,7 @@ def process_stats():
     print(f"Finished at {done.isoformat()}, took {duration} seconds")
 
 
-def _process_comments(dt_comments: Iterable[Dict[str, Any]]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def _process_comments(dt_comments: chain[Dict[str, Any]]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """build a full dataset and a short dataset from a list of comments"""
     cdf = pandas.DataFrame(dt_comments) # type: ignore
 

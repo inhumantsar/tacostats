@@ -2,6 +2,7 @@ import re
 
 
 from datetime import datetime, timezone
+from itertools import chain
 
 from tacostats import statsio
 from tacostats.config import RECAP
@@ -18,13 +19,14 @@ def harvest_comments():
     start = datetime.now(timezone.utc)
     print(f"harvest_comments started at {start}...")
 
-    dt = recap() if RECAP else current()
-    dt_comments = comments(dt)
+    dts = list(recap() if RECAP else current())
+    
+    dt_comments = list(chain(*[comments(dt) for dt in dts]))
 
     print("writing results...")
     statsio.write(
-        statsio.get_dt_prefix(dt.date),
-        comments=list(dt_comments),
+        statsio.get_dt_prefix(dts[0].date),
+        comments=dt_comments,
     )
 
 if __name__ == "__main__":

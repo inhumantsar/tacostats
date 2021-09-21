@@ -1,9 +1,10 @@
+from itertools import chain
 import os
 import re
 
 from datetime import datetime, timezone
 from io import StringIO
-from typing import Dict, Generator, Iterable, List, Tuple
+from typing import Any, Dict, Generator, Iterable, List, Tuple
 
 import contractions
 import pandas
@@ -37,8 +38,8 @@ def process_keywords():
     print(f"started at {start}...")
 
     print("getting comments...")
-    dt = recap() if RECAP else current()
-    dt_comments = comments(dt)
+    dts = list(recap() if RECAP else current())
+    dt_comments = chain(*[comments(dt) for dt in dts])
 
     print("processing comments...")
     processed = list(_process_comments(dt_comments))
@@ -54,7 +55,7 @@ def process_keywords():
     }
 
     print("writing stats...")
-    statsio.write(statsio.get_dt_prefix(dt.date), keywords=keywords)
+    statsio.write(statsio.get_dt_prefix(dts[0].date), keywords=keywords)
 
     print("posting comment...")
     report.post(keywords, "keywords.md.j2")
@@ -113,7 +114,7 @@ def _score_chunk(chunk) -> float:
     return score
 
 
-def _process_comments(comments: Iterable[Dict[str,str]]) -> List[Tuple[str,float]]:
+def _process_comments(comments: chain[Dict[str, Any]]) -> List[Tuple[str,float]]:
     """pull significant keywords from comment list"""
     cdf = pandas.DataFrame(comments) # type: ignore
 

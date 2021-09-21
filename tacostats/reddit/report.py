@@ -18,15 +18,15 @@ def post(data: dict, template_name: str):
     """Posts comment using template and data supplied. Injects `YESTER` for recap comments."""
     # when recapping, post to original dt as well as today's
     if RECAP:
-        recap_dt = recap()
-        template_data = {"YESTER": False, **data}
-        body = _render_template(template_data, template_name)
-        _actually_post(recap_dt.submission, body)
+        for recap_dt in recap():
+            template_data = {"YESTER": False, **data}
+            body = _render_template(template_data, template_name)
+            _actually_post(recap_dt.submission, body)
 
-    todays_dt = current()
-    template_data = {"YESTER": RECAP, **data}
-    body = _render_template(template_data, template_name)
-    _actually_post(todays_dt.submission, body)
+    for todays_dt in current():
+        template_data = {"YESTER": RECAP, **data}
+        body = _render_template(template_data, template_name)
+        _actually_post(todays_dt.submission, body)
 
 
 def _actually_post(target: Union[Comment, Submission], body: str):
@@ -37,8 +37,11 @@ def _actually_post(target: Union[Comment, Submission], body: str):
             f"\n---------------\n--- The above comment would have been written to {target.id}\n---------------"
         )
     else:
-        target.reply(body)
-        print(f"comment posted to {target.id}")
+        try:
+            target.reply(body)
+            print(f"comment posted to {target.id}")
+        except Exception as e:
+            print(f"Failed to post comment to {target.id}: {e}")
 
 
 def _render_template(data: dict, template_name: str) -> str:

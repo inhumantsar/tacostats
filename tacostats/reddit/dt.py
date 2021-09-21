@@ -37,30 +37,28 @@ def get_comment(id: str) -> Comment:
     """Return a PRAW Comment for replying to."""
     return reddit_client.comment(id)
     
-def recap(daysago=1) -> DT:
+def recap(daysago=1) -> Generator[DT, None, None]:
     """Get a dt from the past. Raises a KeyError"""
     target_date = get_target_date(daysago)
     log.info("looking for old dt, target: ", target_date)
 
-    QUERY = 'title:"Discussion Thread" author:jobautomator'
-    for submission in reddit_client.subreddit("neoliberal").search(QUERY, sort="new"):
+    for submission in reddit_client.subreddit("neoliberal").new(limit=None):
         if not submission:
             log.debug(f"submission is falsey: {submission}")
+            continue
+        if not _is_dt(submission):
+            continue 
         dt = DT(submission)
         if target_date == dt.date:
-            return dt
-    raise KeyError("No DT Found!")
+            yield dt
 
-
-def current() -> DT:
+def current() -> Generator[DT, None, None]:
     """Get the current dt by assuming it's one of the current stickies. Raises KeyError."""
     # first sticky might be something else, try both
     for i in [1, 2]:
         submission = reddit_client.subreddit("neoliberal").sticky(number=i)
         if _is_dt(submission):
-            return DT(submission)
-    raise KeyError("No DT Found!")
-
+            yield DT(submission)
 
 def comments(dt: DT) -> Generator[Dict[str, Any], None, None]:
     """Find the appropriate DT and slurp its comments"""
@@ -137,13 +135,27 @@ def get_target_date(daysago: int) -> date:
 
 def _is_dt(dt: Submission) -> bool:
     """Runs through a couple tests to be sure it's a DT (or Thunderdome?)"""
-    return all(
-        [
-            dt.title == "Discussion Thread" or dt.title.lower().contains("thunderdome"),
-            dt.author == "jobautomator",  # add mod list?
-        ]
-    )
+    return all([_check_title(dt.title), _check_author(dt.author)])
 
+def _check_author(author: str) -> bool:
+    authors = [
+        "vhgomes12", "paulatreides0", "ThatFrenchieGuy",
+        "CletusMcGuilly", "Buenzlitum", "UrbanCentrist",
+        "qchisq", "lionmoose", "cdstephens",
+        "dubyahhh", "sir_shivers", "EScforlyfe",
+        "p00bix", "dorambor", "iIoveoof",
+        "jenbanim", "bd_one", "vivoovix",
+        "chatdargent", "jobautomator", "Lux_Stella"
+    ]
+    result = author in authors
+    log.debug(f"_check_author author: {author} result: {result}")
+    return result
+
+def _check_title(title: str) -> bool:
+    titles = ["discussion thread", "thunderdome", "dôme du tonnerre"]
+    result = any([t in title.lower() for t in titles])
+    log.debug(f"_check_title title: {title} result: {result}")
+    return result
 
 def _actually_get_comments(submission: Submission) -> List[Comment]:
     """Get all comments from submission"""
