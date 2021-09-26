@@ -159,7 +159,7 @@ def _check_author(author: str) -> bool:
     return result
 
 def _check_title(title: str) -> bool:
-    titles = ["discussion thread", "thunderdome", "dôme du tonnerre"]
+    titles = ["discussion thread", "thunderdome", "dôme du tonnerre", "elefantenrunde"]
     result = any([t in title.lower() for t in titles])
     log.debug(f"_check_title title: {title} result: {result}")
     return result
