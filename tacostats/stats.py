@@ -45,7 +45,7 @@ def process_stats():
     print(f"Finished at {done.isoformat()}, took {duration} seconds")
 
 
-def _process_comments(dt_comments: chain[Dict[str, Any]]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def _process_comments(dt_comments) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """build a full dataset and a short dataset from a list of comments"""
     cdf = pandas.DataFrame(dt_comments) # type: ignore
 

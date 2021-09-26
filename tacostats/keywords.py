@@ -114,7 +114,7 @@ def _score_chunk(chunk) -> float:
     return score
 
 
-def _process_comments(comments: chain[Dict[str, Any]]) -> List[Tuple[str,float]]:
+def _process_comments(comments) -> List[Tuple[str,float]]:
     """pull significant keywords from comment list"""
     cdf = pandas.DataFrame(comments) # type: ignore
 

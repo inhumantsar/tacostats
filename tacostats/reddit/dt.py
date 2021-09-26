@@ -8,6 +8,8 @@ from typing import Any, Dict, Generator, List, Union
 from praw import Reddit
 from praw.models import Submission, Redditor, MoreComments
 from praw.reddit import Comment
+import prawcore
+from prawcore.exceptions import PrawcoreException
 
 from tacostats import statsio
 from tacostats.config import REDDIT, USE_EXISTING
@@ -56,7 +58,12 @@ def current() -> Generator[DT, None, None]:
     """Get the current dt by assuming it's one of the current stickies. Raises KeyError."""
     # first sticky might be something else, try both
     for i in [1, 2]:
-        submission = reddit_client.subreddit("neoliberal").sticky(number=i)
+        try:
+            submission = reddit_client.subreddit("neoliberal").sticky(number=i)
+        except prawcore.NotFound as e:
+            # for some reason not finding a second sticky started causing 404s.
+            continue
+
         if _is_dt(submission):
             yield DT(submission)
 
