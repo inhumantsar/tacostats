@@ -1,6 +1,7 @@
 from itertools import chain
 import re
 import random
+import sys
 
 from typing import Any, Dict, Generator, Iterable, List, Tuple
 from datetime import datetime, timezone
@@ -19,13 +20,24 @@ _FLAIRMOJI_REGEX = re.compile(r'.*(\:[\-\w]+\:)\s(.*)')
 def lambda_handler(event, context):
     process_stats()
 
-def process_stats():
+def process_stats(daysago=None):
     """pull basic statistics from a thread's comments"""
     start = datetime.now(timezone.utc)
     print(f"process_stats started at {start}...")
 
-    dts = list(recap() if RECAP else current())
-    dt_comments = chain(*[comments(dt) for dt in dts])
+    dts = []
+    if RECAP or daysago:
+        dts = list(recap(daysago=daysago or 1))
+    else:
+        dts = list(current())
+    
+    dt_comments = list(chain(*[comments(dt) for dt in dts]))
+
+    # during thunderdomes, calling comments() twice often results in duplicated
+    # comments. reworking the way comments are written to s3 would be a proper fix
+    # but deduping this way is simpler and not too high-cost.
+    if len(dts) > 1:
+        dt_comments = [dict(t) for t in {tuple(sorted(d.items())) for d in dt_comments}]
 
     print("processing comments...")
     full_stats, short_stats = _process_comments(dt_comments)
@@ -342,4 +354,5 @@ def find_top_emoji(cdf: DataFrame) -> List[List]:
 
 
 if __name__ == "__main__":
-    process_stats()
+    daysago = int(sys.argv[1]) if len(sys.argv) > 1 else None
+    process_stats(daysago=daysago)

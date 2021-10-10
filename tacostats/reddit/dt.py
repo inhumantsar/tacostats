@@ -12,7 +12,7 @@ import prawcore
 from prawcore.exceptions import PrawcoreException
 
 from tacostats import statsio
-from tacostats.config import REDDIT, USE_EXISTING
+from tacostats.config import REDDIT, USE_EXISTING, THUNDERDOME_TITLES
 
 CREATE_TIME = time(hour=7, tzinfo=timezone.utc)
 
@@ -24,7 +24,6 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
 
 reddit_client = Reddit(**REDDIT)
-
 
 @dataclass
 class DT:
@@ -42,7 +41,7 @@ def get_comment(id: str) -> Comment:
 def recap(daysago=1) -> Generator[DT, None, None]:
     """Get a dt from the past. Raises a KeyError"""
     target_date = get_target_date(daysago)
-    log.info("looking for old dt, target: ", target_date)
+    log.info(f"looking for old dt, target: {target_date}")
 
     for submission in reddit_client.subreddit("neoliberal").new(limit=None):
         if not submission:
@@ -74,7 +73,7 @@ def comments(dt: DT) -> Generator[Dict[str, Any], None, None]:
         log.info(f"reading comments already stored on s3 for {dt.date}")
         yield from statsio.read_comments(dt_date=dt.date)
     else:
-        log.info(f"reading comments direct from reddit for {dt.date}")
+        log.info(f"reading comments direct from reddit for {dt.date} ({dt.submission})")
         yield from _process_comments(dt, _actually_get_comments(dt.submission))
 
 def _process_comments(dt: DT, comments: List[Comment]) -> Generator[Dict[str, Any], None, None]:
@@ -93,8 +92,8 @@ def _process_raw_comment(dt: DT, comment: Comment) -> Union[None, Dict[str, Any]
     """clean up comments and return a dictionary. 
     
     Args:
-        comment 
-        dt_date     - Used to filter out comments which don't belong to the target dt.
+        * dt
+        * comment
     """
     # recaps end up coming with a handful of comments from the next day
     # need to NOT exclude comments from the next day but before the next dt though
@@ -155,13 +154,13 @@ def _check_author(author: str) -> bool:
         "chatdargent", "jobautomator", "Lux_Stella"
     ]
     result = author in authors
-    log.debug(f"_check_author author: {author} result: {result}")
+    # log.debug(f"_check_author author: {author} result: {result}")
     return result
 
 def _check_title(title: str) -> bool:
-    titles = ["discussion thread", "thunderdome", "dôme du tonnerre", "elefantenrunde"]
+    titles = ["discussion thread"] + THUNDERDOME_TITLES
     result = any([t in title.lower() for t in titles])
-    log.debug(f"_check_title title: {title} result: {result}")
+    # log.debug(f"_check_title title: {title} result: {result}")
     return result
 
 def _actually_get_comments(submission: Submission) -> List[Comment]:

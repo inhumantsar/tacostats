@@ -6,7 +6,7 @@ from praw.models.reddit.submission import Submission
 from praw.reddit import Comment
 
 from tacostats.reddit.dt import DT, get_comment, recap, current
-from tacostats.config import DRY_RUN, RECAP
+from tacostats.config import WRITE_REDDIT, RECAP
 
 def reply(data: dict, template_name: str, comment_id: str):
     """Replies to another comment using template and data supplied."""
@@ -31,7 +31,7 @@ def post(data: dict, template_name: str):
 
 def _actually_post(target: Union[Comment, Submission], body: str):
     """Posts comment to DT or prints it to screen"""
-    if DRY_RUN:
+    if not WRITE_REDDIT:
         print(f"\n{body}")
         print(
             f"\n---------------\n--- The above comment would have been written to {target.id}\n---------------"

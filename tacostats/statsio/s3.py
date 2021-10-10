@@ -10,7 +10,7 @@ import boto3
 from boto3 import exceptions
 
 from tacostats import util
-from tacostats.config import COMMENTS_KEY, S3_BUCKET
+from tacostats.config import COMMENTS_KEY, S3_BUCKET, get_storage_prefix
 
 _PREFIX_REGEX = regex.compile(r"\d{4}-\d{2}-\d{2}")
 
@@ -67,7 +67,7 @@ def get_age(prefix: str, key: str):
 def get_dt_prefix(dt_date: Union[date,None] = None) -> str:
     """Format dt s3 prefix using date. grabs the latest from s3 if no date is provided."""
     if dt_date:
-        return dt_date.strftime("%Y-%m-%d")
+        return get_storage_prefix(dt_date)
     else:
         return get_latest_dt_prefix()
 

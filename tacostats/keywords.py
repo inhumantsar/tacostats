@@ -1,9 +1,11 @@
 from itertools import chain
+import logging
 import os
 import re
 
 from datetime import datetime, timezone
 from io import StringIO
+import sys
 from typing import Any, Dict, Generator, Iterable, List, Tuple
 
 import contractions
@@ -18,12 +20,21 @@ from tacostats.reddit import report
 from tacostats.reddit.dt import comments, recap, current
 from tacostats.config import RECAP, STOPWORDS, COMMON_WORDS, CHUNK_TYPES, BOT_TRIGGERS, EXCLUDED_AUTHORS
 
+
+logging.basicConfig(level=logging.DEBUG)
+log = logging.getLogger(__name__)
+logging.getLogger("praw").setLevel(logging.WARNING)
+logging.getLogger("prawcore").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
+
+
 # before importing pattern need to download the reqd corpora to /tmp, but only in remote Lambda
 # for whatever reason, this doesn't appear to be necessary locally, even using sam invoke
 if os.getenv("AWS_EXECUTION_ENV", "").startswith("AWS_Lambda"):
     nltk.data.path.append("/tmp")
     for corpus in ["wordnet", "wordnet_ic", "sentiwordnet", "stopwords"]:
-        print(f"downloading nltk corpus: {corpus}")
+        log.debug(f"downloading nltk corpus: {corpus}")
         nltk.download(corpus, download_dir="/tmp")
 
 from pattern.en import parsetree # type: ignore
@@ -32,37 +43,51 @@ from pattern.en import parsetree # type: ignore
 def lambda_handler(event, context):
     process_keywords()
 
-def process_keywords():
+def process_keywords(daysago=None):
     """pull keywords out of the dt, score them, and return all but the least significant"""
     start = datetime.now(timezone.utc)
-    print(f"started at {start}...")
+    log.info(f"started at {start}...")
 
-    print("getting comments...")
-    dts = list(recap() if RECAP else current())
-    dt_comments = chain(*[comments(dt) for dt in dts])
+    log.info("getting comments...")
+    dts = []
+    if RECAP or daysago:
+        dts = list(recap(daysago=daysago or 1))
+    else:
+        dts = list(current())
+    
+    dt_comments = list(chain(*[comments(dt) for dt in dts]))
 
-    print("processing comments...")
+    # during thunderdomes, calling comments() twice often results in duplicated
+    # comments. reworking the way comments are written to s3 would be a proper fix
+    # but deduping this way is simpler and not too high-cost.
+    if len(dts) > 1:
+        log.debug('attempting to dedupe comments...')
+        dt_comments = [dict(t) for t in {tuple(sorted(d.items())) for d in dt_comments}]
+
+    log.info("processing comments...")
+    log.debug(f"comment sample: {dt_comments[0]}")
     processed = list(_process_comments(dt_comments))
-    print("keyword count:", len(processed))
-    filtered = [i[0] for i in processed if i[1] > 3]
+    log.info(f"keyword count: {len(processed)}")
+    filtered = [(_format_keyword(i[0]), i[1]) for i in processed if i[1] > 3]
     keywords = {
-        "keywords_h1": [_format_keyword(i) for i in filtered[:10]],
-        "keywords_h2": [_format_keyword(i) for i in filtered[10:30]],
-        "keywords_h3": [_format_keyword(i) for i in filtered[30:60]],
-        "keywords_h4": [_format_keyword(i) for i in filtered[60:120]],
-        "keywords_h5": [_format_keyword(i) for i in filtered[120:180]],
-        "keywords_h6": [_format_keyword(i) for i in filtered[180:240]],
+        "keyword_scores": filtered,
+        "keywords_h1": [i[0] for i in filtered[:10]],
+        "keywords_h2": [i[0] for i in filtered[10:30]],
+        "keywords_h3": [i[0] for i in filtered[30:60]],
+        "keywords_h4": [i[0] for i in filtered[60:120]],
+        "keywords_h5": [i[0] for i in filtered[120:180]],
+        "keywords_h6": [i[0] for i in filtered[180:240]],
     }
 
-    print("writing stats...")
+    log.info("writing stats...")
     statsio.write(statsio.get_dt_prefix(dts[0].date), keywords=keywords)
 
-    print("posting comment...")
+    log.info("posting comment...")
     report.post(keywords, "keywords.md.j2")
 
     done = datetime.now(timezone.utc)
     duration = (done - start).total_seconds()
-    print(f"Finished at {done.isoformat()}, took {duration} seconds")
+    log.info(f"Finished at {done.isoformat()}, took {duration} seconds")
 
 def _parse_comment(comment: str) -> Generator[Tuple[float, str], None, None]:
     """use pattern to parse keywords out of a comment"""
@@ -79,8 +104,8 @@ def _parse_comment(comment: str) -> Generator[Tuple[float, str], None, None]:
             tagset=None,
         )
     except Exception as e:
-        print(f"\nWARNING: Unable to parse comment: {comment_str}")
-        print(e)
+        log.debug(f"\nWARNING: Unable to parse comment: {comment_str}")
+        log.debug(e)
         yield (-1, "")
     else:
         for sentence in parsed:
@@ -118,11 +143,11 @@ def _process_comments(comments) -> List[Tuple[str,float]]:
     """pull significant keywords from comment list"""
     cdf = pandas.DataFrame(comments) # type: ignore
 
-    print('removing bot comments...')
+    log.debug('removing bot comments...')
     # pandas syntax is dumb so pylance (rightly) thinks this returns a series
     cdf: DataFrame = cdf[~cdf.author.isin(EXCLUDED_AUTHORS)] # type: ignore
 
-    print(f"got {cdf.count()} comments")
+    log.debug(f"got {cdf.count()} comments")
     
     # parse each comment, sorting the results by score
     parsed_comments = cdf[["body"]].apply(
@@ -131,8 +156,8 @@ def _process_comments(comments) -> List[Tuple[str,float]]:
         ]
     )
 
-    # explode each result (a list of tuples) into rows of tuples
-    parsed_comments = parsed_comments.explode("body")
+    # explode each result (a list of tuples) into rows of tuples, drop NaNs
+    parsed_comments = parsed_comments.explode("body").dropna()
 
     # create a new dataframe, turning each tuple element into a column and filter common words (why isn't the scoring doing this??)
     keywords_df = pandas.DataFrame(
@@ -149,11 +174,10 @@ def _process_comments(comments) -> List[Tuple[str,float]]:
         .sort_values(["score"], ascending=False)
     )
 
-    print(f"keywords_df count {keywords_df.count()}")
+    log.debug(f"keywords_df count {keywords_df.count()}")
     for _, row in keywords_df.iterrows():
-        if row["score"] >= 3: 
-            keyword_tuple = _get_keyword_tuple(row)
-            yield keyword_tuple
+        if row["score"] >= 3:
+            yield _get_keyword_tuple(row)
 
 def _get_keyword_tuple(row) -> Tuple[str, float]:
     return (row["keyword"], row["score"])
@@ -198,4 +222,5 @@ def _unmark(text):
 
 
 if __name__ == "__main__":
-    process_keywords()
+    daysago = int(sys.argv[1]) if len(sys.argv) > 1 else None
+    process_keywords(daysago=daysago)

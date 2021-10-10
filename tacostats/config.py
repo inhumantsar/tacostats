@@ -1,3 +1,5 @@
+from datetime import date, datetime
+import logging
 import os
 
 from distutils.util import strtobool
@@ -8,13 +10,23 @@ from dotenv import load_dotenv
 
 load_dotenv(verbose=True)
 
+logging.basicConfig(level=logging.DEBUG)
+log = logging.getLogger(__name__)
+logging.getLogger("praw").setLevel(logging.WARNING)
+logging.getLogger("prawcore").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
+
+
 # data bucket
 S3_BUCKET = os.getenv("S3_BUCKET")
 print("S3_BUCKET set to ", S3_BUCKET)
 
-# don't write to s3 or post anything to reddit
-DRY_RUN = bool(strtobool(os.getenv("DRY_RUN", "False")))
-print("DRY_RUN set to ", DRY_RUN)
+WRITE_S3 = bool(strtobool(os.getenv("WRITE_S3", "False")))
+print("WRITE_S3 set to ", WRITE_S3)
+
+WRITE_REDDIT = bool(strtobool(os.getenv("WRITE_REDDIT", "False")))
+print("WRITE_REDDIT set to ", WRITE_REDDIT)
 
 # write stats locally as well as to s3
 LOCAL_STATS = bool(strtobool(os.getenv("LOCAL_STATS", "False")))
@@ -28,14 +40,21 @@ print("USE_EXISTING set to ", USE_EXISTING)
 RECAP = bool(strtobool(os.getenv("RECAP", "False")))
 print("RECAP set to ", RECAP)
 
-# filename for full comments file, shared among all modules
+# filenames shared among all modules, storage module handles extension
 COMMENTS_KEY = "comments"
+FULLSTATS_KEY = "full_stats"
+
+def get_storage_prefix(day: date):
+    """Returns a common format for storage prefixes."""
+    return day.strftime("%Y-%m-%d")
 
 # how far back into a user's DT history to compile stats on
 USERSTATS_HISTORY = int(os.getenv("USERSTATS_HISTORY", 7))
 
 secrets = boto3.client("secretsmanager")
 get_secret = lambda x: secrets.get_secret_value(SecretId=x)["SecretString"]
+
+THUNDERDOME_TITLES = ["thunderdome", "dôme du tonnerre", "elefantenrunde"]
 
 REDDIT = {
     "client_id": os.getenv("REDDIT_ID", get_secret("tacostats-reddit-client-id")),

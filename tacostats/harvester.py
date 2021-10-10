@@ -1,4 +1,5 @@
 import re
+import sys
 
 
 from datetime import datetime, timezone
@@ -14,12 +15,16 @@ NEUTER_RE = re.compile(r"!ping", re.MULTILINE | re.IGNORECASE | re.UNICODE)
 def lambda_handler(event, context):
     harvest_comments()
 
-def harvest_comments():
+def harvest_comments(daysago=None):
     """pull dt comments and stash them in s3"""
     start = datetime.now(timezone.utc)
     print(f"harvest_comments started at {start}...")
 
-    dts = list(recap() if RECAP else current())
+    dts = []
+    if RECAP or daysago:
+        dts = list(recap(daysago=daysago or 1))
+    else:
+        dts = list(current())
     
     dt_comments = list(chain(*[comments(dt) for dt in dts]))
 
@@ -30,4 +35,5 @@ def harvest_comments():
     )
 
 if __name__ == "__main__":
-    harvest_comments()
+    daysago = int(sys.argv[1]) if len(sys.argv) > 1 else None
+    harvest_comments(daysago=daysago)
