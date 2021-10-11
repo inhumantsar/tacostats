@@ -66,15 +66,20 @@ def current() -> Generator[DT, None, None]:
         if _is_dt(submission):
             yield DT(submission)
 
-def comments(dt: DT) -> Generator[Dict[str, Any], None, None]:
+def comments(dt: DT = None, day: date = None) -> Generator[Dict[str, Any], None, None]:
     """Find the appropriate DT and slurp its comments"""
     # existing comments files in s3 have already been processed
     if USE_EXISTING:
-        log.info(f"reading comments already stored on s3 for {dt.date}")
-        yield from statsio.read_comments(dt_date=dt.date)
+        if dt:
+            day = dt.date
+        if day == None:
+            day = datetime.now().date()
+        log.info(f"reading stored comments for {day}")
+        yield from statsio.read_comments(dt_date=day)
     else:
-        log.info(f"reading comments direct from reddit for {dt.date} ({dt.submission})")
-        yield from _process_comments(dt, _actually_get_comments(dt.submission))
+        if dt:
+            log.info(f"reading comments direct from reddit for {dt.date} ({dt.submission})")
+            yield from _process_comments(dt, _actually_get_comments(dt.submission))
 
 def _process_comments(dt: DT, comments: List[Comment]) -> Generator[Dict[str, Any], None, None]:
     for comment in comments:

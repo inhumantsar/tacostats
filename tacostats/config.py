@@ -43,6 +43,7 @@ print("RECAP set to ", RECAP)
 # filenames shared among all modules, storage module handles extension
 COMMENTS_KEY = "comments"
 FULLSTATS_KEY = "full_stats"
+KEYWORDS_KEY = "keywords"
 
 def get_storage_prefix(day: date):
     """Returns a common format for storage prefixes."""

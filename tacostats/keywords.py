@@ -3,7 +3,7 @@ import logging
 import os
 import re
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import StringIO
 import sys
 from typing import Any, Dict, Generator, Iterable, List, Tuple
@@ -49,23 +49,13 @@ def process_keywords(daysago=None):
     log.info(f"started at {start}...")
 
     log.info("getting comments...")
-    dts = []
+    day = datetime.now().date()
     if RECAP or daysago:
-        dts = list(recap(daysago=daysago or 1))
-    else:
-        dts = list(current())
+        day = day - timedelta(1 if not daysago else daysago)
     
-    dt_comments = list(chain(*[comments(dt) for dt in dts]))
-
-    # during thunderdomes, calling comments() twice often results in duplicated
-    # comments. reworking the way comments are written to s3 would be a proper fix
-    # but deduping this way is simpler and not too high-cost.
-    if len(dts) > 1:
-        log.debug('attempting to dedupe comments...')
-        dt_comments = [dict(t) for t in {tuple(sorted(d.items())) for d in dt_comments}]
+    dt_comments = comments(day=day)
 
     log.info("processing comments...")
-    log.debug(f"comment sample: {dt_comments[0]}")
     processed = list(_process_comments(dt_comments))
     log.info(f"keyword count: {len(processed)}")
     filtered = [(_format_keyword(i[0]), i[1]) for i in processed if i[1] > 3]
@@ -80,7 +70,7 @@ def process_keywords(daysago=None):
     }
 
     log.info("writing stats...")
-    statsio.write(statsio.get_dt_prefix(dts[0].date), keywords=keywords)
+    statsio.write(statsio.get_dt_prefix(day), keywords=keywords)
 
     log.info("posting comment...")
     report.post(keywords, "keywords.md.j2")
