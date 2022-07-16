@@ -72,7 +72,9 @@ EXCLUDED_AUTHORS = [
     "EmojifierBotv2",
     "groupbot",
     "tacostats",
-    "ShiversifyBot"
+    "ShiversifyBot",
+    "sorobucksbot",
+    "tacograph"
 ]
 CHUNK_TYPES = ["NP", "ADJP"]
 
