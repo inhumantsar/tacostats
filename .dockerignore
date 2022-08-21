@@ -1,7 +1,9 @@
 *.ipynb
+.ipynb*
 *.json
 venv
 __pycache__
 .aws-sam
 .vscode
 .env
+.data

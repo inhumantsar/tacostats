@@ -1,7 +1,7 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  tacostats v1.4.0
+  tacostats v1.5.4
 
   periodically grab comments from the r/neoliberal DT and gather some basic statistics
 
@@ -19,9 +19,9 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 256
-      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.4.0
+      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.5.4
       ImageConfig:
-        Command: 
+        Command:
           - tacostats.harvester.lambda_handler
       Role: arn:aws:iam::390721581096:role/tacostats
       Events:
@@ -29,7 +29,7 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: cron(55/30 * * * ? *)
-            Enabled: True       
+            Enabled: True
     Metadata:
       Dockerfile: lambda.Dockerfile
       DockerContext: "."
@@ -40,9 +40,9 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 256
-      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.4.0
+      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.5.4
       ImageConfig:
-        Command: 
+        Command:
           - tacostats.harvester.lambda_handler
       Environment:
         Variables:
@@ -53,7 +53,7 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: cron(0 7 * * ? *)
-            Enabled: True       
+            Enabled: True
     Metadata:
       Dockerfile: lambda.Dockerfile
       DockerContext: "."
@@ -66,9 +66,9 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 256
-      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.4.0
+      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.5.4
       ImageConfig:
-        Command: 
+        Command:
           - tacostats.stats.lambda_handler
       Role: arn:aws:iam::390721581096:role/tacostats
       Environment:
@@ -80,7 +80,7 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: cron(0 16,22,1 * * ? *)
-            Enabled: True       
+            Enabled: True
     Metadata:
       Dockerfile: lambda.Dockerfile
       DockerContext: "."
@@ -91,9 +91,9 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 256
-      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.4.0
+      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.5.4
       ImageConfig:
-        Command: 
+        Command:
           - tacostats.stats.lambda_handler
       Environment:
         Variables:
@@ -106,7 +106,7 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: cron(0 13 * * ? *)
-            Enabled: True       
+            Enabled: True
     Metadata:
       Dockerfile: lambda.Dockerfile
       DockerContext: "."
@@ -119,9 +119,9 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 384
-      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.4.0
+      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.5.4
       ImageConfig:
-        Command: 
+        Command:
           - tacostats.keywords.lambda_handler
       Environment:
         Variables:
@@ -143,9 +143,9 @@ Resources:
     Properties:
       PackageType: Image
       MemorySize: 384
-      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.4.0
+      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.5.4
       ImageConfig:
-        Command: 
+        Command:
           - tacostats.keywords.lambda_handler
       Environment:
         Variables:
@@ -158,7 +158,7 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: cron(0 14 * * ? *)
-            Enabled: True       
+            Enabled: True
     Metadata:
       Dockerfile: lambda.Dockerfile
       DockerContext: "."
@@ -166,25 +166,24 @@ Resources:
   ###############
   # UserStats
   ###############
-  # UserStats:
-  #   Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
-  #   Properties:
-  #     Timeout: 30
-  #     PackageType: Image
-  #     MemorySize: 256
-  #     ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.4.0
-  #     ImageConfig:
-  #       Command: 
-  #         - tacostats.userstats.lambda_handler
-  #     Role: arn:aws:iam::390721581096:role/tacostats
-  #     Events:
-  #       Queue:
-  #         Type: SQS
-  #         Properties:
-  #           Queue: arn:aws:sqs:us-east-2:390721581096:tacostats-pinger
-  #           BatchSize: 10
-  #           Enabled: true
-  #   Metadata:
-  #     Dockerfile: lambda.Dockerfile
-  #     DockerContext: "."
-
+  UserStats:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      Timeout: 300
+      PackageType: Image
+      MemorySize: 512
+      ImageUri: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats:v1.5.4
+      ImageConfig:
+        Command:
+          - tacostats.userstats.lambda_handler
+      Role: arn:aws:iam::390721581096:role/tacostats
+      Events:
+        Queue:
+          Type: SQS
+          Properties:
+            Queue: arn:aws:sqs:us-east-2:390721581096:tacostats-pinger
+            BatchSize: 10
+            Enabled: true
+    Metadata:
+      Dockerfile: lambda.Dockerfile
+      DockerContext: "."

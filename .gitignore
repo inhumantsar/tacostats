@@ -5,4 +5,4 @@ __pycache__
 .aws-sam
 .vscode
 .env
-data
+.data
