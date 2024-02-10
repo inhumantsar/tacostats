@@ -1,7 +1,7 @@
 awscli==1.19.97
 boto3==1.17.97
 contractions==0.0.52
-emoji==1.2.0
+emoji==2.10.1
 jinja2==3.0.1
 markdown==3.5.2
 pandas==1.2.4
