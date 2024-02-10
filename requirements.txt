@@ -11,3 +11,5 @@ praw==7.7.1
 python-dotenv==1.0.1
 # `nltk` should be installed before this for a smoother process
 rake-nltk==1.0.6
+psycopg2-binary==2.9.9
+openai==1.12.0

@@ -8,6 +8,7 @@ from praw.reddit import Comment
 from tacostats.reddit.dt import DT, get_comment, recap, current
 from tacostats.config import WRITE_REDDIT, RECAP
 
+
 def reply(data: dict, template_name: str, comment_id: str):
     """Replies to another comment using template and data supplied."""
     body = _render_template(data, template_name)
@@ -33,9 +34,7 @@ def _actually_post(target: Union[Comment, Submission], body: str):
     """Posts comment to DT or prints it to screen"""
     if not WRITE_REDDIT:
         print(f"\n{body}")
-        print(
-            f"\n---------------\n--- The above comment would have been written to {target.id}\n---------------"
-        )
+        print(f"\n---------------\n--- The above comment would have been written to {target.id}\n---------------")
     else:
         try:
             target.reply(body)
@@ -46,9 +45,7 @@ def _actually_post(target: Union[Comment, Submission], body: str):
 
 def _render_template(data: dict, template_name: str) -> str:
     """Reads Jinja template in and fills it with `data`, returning the rendered body"""
-    jinja_env = Environment(
-        loader=PackageLoader("tacostats"), autoescape=select_autoescape()
-    )
+    jinja_env = Environment(loader=PackageLoader("tacostats"), autoescape=select_autoescape())
     template = jinja_env.get_template(template_name)
     print(f"got template: {template_name} {template}, rendering...")
     return template.render(**data)

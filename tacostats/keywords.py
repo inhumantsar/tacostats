@@ -15,7 +15,7 @@ import nltk
 from markdown import Markdown
 from praw.reddit import Comment
 
-from tacostats import statsio
+from tacostats.statsio import write, get_dt_prefix
 from tacostats.reddit import report
 from tacostats.reddit.dt import comments, recap, current
 from tacostats.config import RECAP, STOPWORDS, COMMON_WORDS, CHUNK_TYPES, BOT_TRIGGERS, EXCLUDED_AUTHORS
@@ -37,11 +37,12 @@ if os.getenv("AWS_EXECUTION_ENV", "").startswith("AWS_Lambda"):
         log.debug(f"downloading nltk corpus: {corpus}")
         nltk.download(corpus, download_dir="/tmp")
 
-from pattern.en import parsetree # type: ignore
+from pattern.en import parsetree  # type: ignore
 
 
 def lambda_handler(event, context):
     process_keywords()
+
 
 def process_keywords(daysago=None):
     """pull keywords out of the dt, score them, and return all but the least significant"""
@@ -52,7 +53,7 @@ def process_keywords(daysago=None):
     day = datetime.now().date()
     if RECAP or daysago:
         day = day - timedelta(1 if not daysago else daysago)
-    
+
     dt_comments = comments(day=day)
 
     log.info("processing comments...")
@@ -70,7 +71,7 @@ def process_keywords(daysago=None):
     }
 
     log.info("writing stats...")
-    statsio.write(statsio.get_dt_prefix(day), keywords=keywords)
+    write(get_dt_prefix(day), keywords=keywords)
 
     log.info("posting comment...")
     report.post(keywords, "keywords.md.j2")
@@ -78,6 +79,7 @@ def process_keywords(daysago=None):
     done = datetime.now(timezone.utc)
     duration = (done - start).total_seconds()
     log.info(f"Finished at {done.isoformat()}, took {duration} seconds")
+
 
 def _parse_comment(comment: str) -> Generator[Tuple[float, str], None, None]:
     """use pattern to parse keywords out of a comment"""
@@ -101,11 +103,12 @@ def _parse_comment(comment: str) -> Generator[Tuple[float, str], None, None]:
         for sentence in parsed:
             yield from _parse_sentence(sentence)
 
+
 def _parse_sentence(sentence) -> Generator[Tuple[float, str], None, None]:
-    """flip through each chunk of a sentence, scoring and cleaning it.""" 
+    """flip through each chunk of a sentence, scoring and cleaning it."""
     for chunk in sentence.chunks:
         if (score := _score_chunk(chunk)) > 0:
-            if (s := _clean_chunk(chunk)):
+            if s := _clean_chunk(chunk):
                 yield (score, s)
 
 
@@ -113,7 +116,8 @@ def _clean_chunk(chunk) -> str:
     """remove stopwords from final chunk"""
     goodstr = lambda s: 2 < len(s) < 40 and s not in STOPWORDS
     strings = chunk.string.split(" ")
-    return " ".join([i for i in strings if goodstr(i)])    
+    return " ".join([i for i in strings if goodstr(i)])
+
 
 def _score_chunk(chunk) -> float:
     """rates a sentence chunk by the type of word, how many other chunks it relates to, and filters junk words."""
@@ -122,55 +126,46 @@ def _score_chunk(chunk) -> float:
     score += 1 if chunk.type in CHUNK_TYPES else 0
     score += 1 if chunk.role is not None else 0
     score += 0.5 if len(chunk.modifiers) > 0 else 0
-    
+
     junk_words = COMMON_WORDS + STOPWORDS + BOT_TRIGGERS
     score = 0 if chunk.head.string in junk_words else score
     score = 0 if any([i in chunk.string for i in BOT_TRIGGERS]) else score
     return score
 
 
-def _process_comments(comments) -> List[Tuple[str,float]]:
+def _process_comments(comments) -> Generator[Tuple[str, float], None, None]:
     """pull significant keywords from comment list"""
-    cdf = pandas.DataFrame(comments) # type: ignore
+    cdf = pandas.DataFrame(comments)  # type: ignore
 
-    log.debug('removing bot comments...')
+    log.debug("removing bot comments...")
     # pandas syntax is dumb so pylance (rightly) thinks this returns a series
-    cdf: DataFrame = cdf[~cdf.author.isin(EXCLUDED_AUTHORS)] # type: ignore
+    cdf: DataFrame = cdf[~cdf.author.isin(EXCLUDED_AUTHORS)]  # type: ignore
 
     log.debug(f"got {cdf.count()} comments")
-    
+
     # parse each comment, sorting the results by score
-    parsed_comments = cdf[["body"]].apply(
-        lambda x: [
-            sorted(_parse_comment(c), key=lambda y: y[0], reverse=True) for c in x
-        ]
-    )
+    parsed_comments = cdf[["body"]].apply(lambda x: [sorted(_parse_comment(c), key=lambda y: y[0], reverse=True) for c in x])
 
     # explode each result (a list of tuples) into rows of tuples, drop NaNs
     parsed_comments = parsed_comments.explode("body").dropna()
 
     # create a new dataframe, turning each tuple element into a column and filter common words (why isn't the scoring doing this??)
-    keywords_df = pandas.DataFrame(
-        parsed_comments["body"].to_list(), columns=["score", "keyword"]
-    )
+    keywords_df = pandas.DataFrame(parsed_comments["body"].to_list(), columns=["score", "keyword"])
     keywords_df = keywords_df.loc[keywords_df["score"] > 1]
     keywords_df = keywords_df.loc[~keywords_df["keyword"].isin(COMMON_WORDS)]
 
     # group matching keywords and sum their scores
-    keywords_df = (
-        keywords_df.groupby("keyword")  # type: ignore
-        .sum()
-        .reset_index()
-        .sort_values(["score"], ascending=False)
-    )
+    keywords_df = keywords_df.groupby("keyword").sum().reset_index().sort_values(["score"], ascending=False)  # type: ignore
 
     log.debug(f"keywords_df count {keywords_df.count()}")
     for _, row in keywords_df.iterrows():
         if row["score"] >= 3:
             yield _get_keyword_tuple(row)
 
+
 def _get_keyword_tuple(row) -> Tuple[str, float]:
     return (row["keyword"], row["score"])
+
 
 def _format_keyword(keyword) -> str:
     """Return a keyword's main component"""
@@ -182,8 +177,9 @@ def _clean(text: str) -> str:
     text = _unmark(text)
     text = re.sub(r"https?://\S+", "", text, flags=re.MULTILINE)
     text = text.lower()
-    text = contractions.fix(text) # type: ignore
+    text = contractions.fix(text)  # type: ignore
     return text
+
 
 ### stuff to remove markdown
 # https://stackoverflow.com/questions/761824/python-how-to-convert-markdown-formatted-text-to-text
@@ -202,8 +198,8 @@ def _unmark_element(element, stream=None):
 
 # patching Markdown
 Markdown.output_formats["plain"] = _unmark_element  # type: ignore
-__md = Markdown(output_format="plain")              # type: ignore
-__md.stripTopLevelTags = False                      # type: ignore
+__md = Markdown(output_format="plain")  # type: ignore
+__md.stripTopLevelTags = False  # type: ignore
 
 
 def _unmark(text):

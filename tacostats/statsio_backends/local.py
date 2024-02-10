@@ -4,9 +4,11 @@ import os
 
 from pathlib import Path
 from tacostats.config import COMMENTS_KEY
+from tacostats.util import NumpyEncoder
 from typing import Any, Dict, List, Union
 
-LOCAL_PATH = ".local_stats"
+LOCAL_PATH = os.getenv("LOCAL_PATH", ".local_stats")
+
 
 def write(prefix: str, **kwargs):
     """wrote local stats files. use kwargs keys for name, values for data"""
@@ -17,7 +19,8 @@ def write(prefix: str, **kwargs):
         path = parent / f"{key}.json"
         # _check_for_unserializable_shit(value)
         with open(path, "w", encoding="utf-8") as fh:
-            fh.write(json.dumps(value))
+            fh.write(json.dumps(value, cls=NumpyEncoder))
+
 
 def read(prefix: str, key: str) -> Any:
     """read local stats file"""
@@ -26,14 +29,17 @@ def read(prefix: str, key: str) -> Any:
     with open(path, encoding="utf-8") as fh:
         return json.loads(fh.read())
 
+
 def read_comments(prefix: str) -> List[Dict[str, Any]]:
     """read local comments file"""
     return read(prefix, COMMENTS_KEY)
+
 
 def get_age(prefix: str, key: str) -> int:
     """get number of seconds since object was last modified"""
     path = Path(LOCAL_PATH) / prefix / f"{key}.json"
     return int(path.stat().st_mtime - datetime.now().timestamp())
+
 
 def _check_for_unserializable_shit(value):
     """only enabled during debugging. ignore me."""

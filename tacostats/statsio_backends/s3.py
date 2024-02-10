@@ -10,7 +10,7 @@ import numpy
 
 from boto3 import exceptions
 
-from tacostats import util
+from tacostats.util import NumpyEncoder, now
 from tacostats.config import COMMENTS_KEY, S3_BUCKET, get_storage_prefix
 
 _PREFIX_REGEX = regex.compile(r"\d{4}-\d{2}-\d{2}")
@@ -23,17 +23,6 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
 
 
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, numpy.integer):
-            return int(obj)
-        if isinstance(obj, numpy.floating):
-            return float(obj)
-        if isinstance(obj, numpy.ndarray):
-            return obj.tolist()
-        return super(NumpyEncoder, self).default(obj)
-
-
 def write(prefix: str, **kwargs):
     """write data to s3.
 
@@ -41,6 +30,9 @@ def write(prefix: str, **kwargs):
         prefix - s3 "path" to write to. must not include trailing slash.
         kwargs - key is s3 "filename" to write, value is json-serializable data.
     """
+    if not S3_BUCKET:
+        raise ValueError("S3_BUCKET not set")
+
     for key, value in kwargs.items():
         s3_key = f"{prefix}/{key}.json"
         log.info(f"writing to s3: {s3_key}")
@@ -53,6 +45,9 @@ def read_comments(dt_date: Union[date, None]) -> List[Dict[str, Any]]:
 
 def read(prefix: str, key: str) -> Any:
     """Read json data stored in bucket."""
+    if not S3_BUCKET:
+        raise ValueError("S3_BUCKET not set")
+
     print(f"reading {key} from s3 at {prefix}...")
     s3 = boto3.client("s3")
     try:
@@ -65,6 +60,9 @@ def read(prefix: str, key: str) -> Any:
 
 def get_age(prefix: str, key: str):
     """get number of seconds since object was last modified"""
+    if not S3_BUCKET:
+        raise ValueError("S3_BUCKET not set")
+
     objects = boto3.client("s3").list_objects_v2(Bucket=S3_BUCKET, Prefix=f"{prefix}/{key}")
 
     if objects["KeyCount"] == 0:
@@ -72,7 +70,7 @@ def get_age(prefix: str, key: str):
     elif objects["KeyCount"] > 1:
         log.warning(f"{objects['KeyCount']} objects found matching {prefix}/{key}*, ignoring all but the first.")
 
-    return util.now() - int(objects["Contents"][0]["LastModified"].timestamp())
+    return now() - int(objects["Contents"][0]["LastModified"].timestamp())
 
 
 def get_dt_prefix(dt_date: Union[date, None] = None) -> str:
@@ -84,8 +82,11 @@ def get_dt_prefix(dt_date: Union[date, None] = None) -> str:
 
 
 def get_latest_dt_prefix() -> str:
+    if not S3_BUCKET:
+        raise ValueError("S3_BUCKET not set")
+
     s3_listing = boto3.client("s3").list_objects_v2(
-        Bucket="tacostats-data",
+        Bucket=S3_BUCKET,
         Delimiter="/",
         # TODO: worry about this in 3 years
         MaxKeys=1000,
