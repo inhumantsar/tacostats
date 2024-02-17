@@ -1,38 +1,52 @@
-from collections import namedtuple
+import json
 import logging
-from typing import List, Tuple
-from openai import OpenAI
 
-logging.basicConfig(level=logging.DEBUG)
+from collections import namedtuple
+from typing import Dict, List, Optional, Tuple
+
+from openai import OpenAI
+import tiktoken
+
+from tacostats.config import CHAT_MODEL, EMBEDDING_MODEL, PRIMER_PROMPT, DEFAULT_TEMPERATURE, RULES_PROMPT, MAX_TOKENS
+
 log = logging.getLogger(__name__)
-logging.getLogger("httpcore").setLevel(logging.WARNING)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logging.getLogger("openai").setLevel(logging.INFO)
 
 
 client = OpenAI()
 
-EMBEDDING_MODEL = "text-embedding-3-small"
-
 EmbeddingResult = namedtuple("EmbeddingResult", ["model", "embedding"])
 
-PRIMER_PROMPT = """
-Your name is tacostats. You are a robot-taco and you spend all your time on Reddit. 
-You will be interating with people in the daily general discussion thread of a niche politics subreddit. 
-People posting there have a lot of inside jokes. If a message seems strange, it is likely an inside joke. 
-Most of the time, the messages will involve current affairs or events in the poster's life. Most people will be from the 
-US, but there are many from other countries as well, especially Canada, Australia, the UK, and Europe.
 
-When responding, keep the tone informal and responses brief.  
-Do not use any formatting in responses except for line breaks. 
-Emoji are welcome but don't use more than 4 or 5. 
-Being snarky is good in small doses. Avoid being cringe.
-Avoid trying to count words or characters on your own.
-ALWAYS ROUND NUMBERS UP TO THE NEAREST INTEGER -- this is very important.
-A little self-deprecating humor or jokes about how strange humans can be is fine but only include that
-rarely, maybe 1 in 20 responses.
-DO NOT REPEAT YOURSELF
-"""
+class MaxTokensExceededError(Exception):
+    current_tokens: int
+    max_tokens: int
+
+    def __init__(self, message: str, current_threads: int, max_threads: int):
+        super().__init__(message)
+        self.current_tokens = current_threads
+        self.max_tokens = max_threads
+
+
+def estimate_tokens(text: str, model) -> int:
+    encoding = tiktoken.encoding_for_model(model)
+    return len(encoding.encode(text))
+
+
+def build_prompts(
+    chat_prompt: Optional[str] = None,
+    system_prompt: Optional[str] = None,
+    model: str = CHAT_MODEL,
+) -> Tuple[List[Dict[str, str]], int]:
+    """Returns chat completion prompts and the estimated token count."""
+
+    prompts = [
+        {"role": "system", "content": PRIMER_PROMPT},
+        {"role": "system", "content": system_prompt or ""},
+        {"role": "system", "content": RULES_PROMPT},
+        {"role": "user", "content": chat_prompt or ""},
+    ]
+
+    return prompts, estimate_tokens(json.dumps(prompts), model)
 
 
 def create_embedding(text: str, model: str = EMBEDDING_MODEL) -> EmbeddingResult:
@@ -40,16 +54,28 @@ def create_embedding(text: str, model: str = EMBEDDING_MODEL) -> EmbeddingResult
     return EmbeddingResult(model, response.data[0].embedding)
 
 
-def create_chat_completion(prompt: str, model: str = "gpt-4-turbo-preview", temperature=0.5) -> str:
-    log.info(f"prompt: {prompt}")
+def create_chat_completion(
+    chat_prompt: str,
+    system_prompt: Optional[str] = None,
+    model: str = CHAT_MODEL,
+    temperature=DEFAULT_TEMPERATURE,
+) -> str:
+    prompts, size = build_prompts(chat_prompt, system_prompt)
+    log.info(f"prompts token count: {size}")
+    log.debug(f"prompt data: {json.dumps(prompts, indent=2)}")
+
+    if size > MAX_TOKENS:
+        raise MaxTokensExceededError(
+            f"chat prompt token count {size} exceeds the maximum token count {MAX_TOKENS}",
+            current_threads=size,
+            max_threads=MAX_TOKENS,
+        )
+
     raw_response = client.chat.completions.create(
-        messages=[
-            {"role": "system", "content": PRIMER_PROMPT},
-            {"role": "user", "content": prompt},
-        ],
+        messages=prompts,  # type: ignore
         model=model,
         temperature=temperature,
     )
     response = (raw_response.choices[0].message.content or "").strip()
-    log.info(f"response: {response}")
+    log.info(f'chat completion response\n"""\n{response}\n"""')
     return response

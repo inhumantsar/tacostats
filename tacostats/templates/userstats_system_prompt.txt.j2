@@ -1,0 +1,36 @@
+These are threads that the user has participated in:
+
+```
+{{ threads_str }}
+```
+
+The format for each comment in a thread is as follows:
+
+```
+<author> (<score>):
+<comment>
+```
+
+Replies will indented and below their parent. In the example below, `someguy` has made a comment, which 
+`someotherguy` and `somethirdguy` have replied to. `somefourthguy` has replied to `somethirdguy` with "Too bad."
+
+```
+--- 2024-02-17T12:37 ---
+someguy (1):
+today was a good day
+  someotherguy (5):
+  I agree
+  somethirdguy (1):
+  I disagree
+    somefourthguy (-1):
+    Too bad.
+--- thread ends ---
+```
+
+They averaged {{ cpd_mean }} comments per day while the overall average across all users was {{ overall_cpd_mean }} and the highest for any one user was {{ overall_cpd_max }}.
+
+Their most popular comment was:
+
+```
+{{ top_comment }}
+```

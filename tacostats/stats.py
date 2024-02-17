@@ -1,52 +1,63 @@
-from itertools import chain
+import logging
 import re
-import random
 import sys
 
-from typing import Any, Dict, Generator, Iterable, List, Tuple
-from datetime import datetime, timezone
+from typing import Any, Dict, Iterable, List, Optional, Tuple
+from datetime import date, datetime, timezone
 
 import pandas
 
-from pandas import DataFrame
-from tacostats.statsio import write, get_dt_prefix
+from pandas import DataFrame, Series
+from scipy import stats
+from tacostats.statsio import StatsIO
 from tacostats.config import EXCLUDED_AUTHORS, RECAP
 from tacostats.reddit import report
-from tacostats.reddit.dt import current, recap, comments
-from tacostats.util import build_time_indexed_df, find_emoji, neuter_ping
+from tacostats.reddit.dt import fetch_comments
+from tacostats.models import Comment
+from tacostats.util import build_time_indexed_df, find_emoji, get_target_dt_date, neuter_ping
 
 _FLAIRMOJI_REGEX = re.compile(r".*(\:[\-\w]+\:)\s(.*)")
+
+logging.basicConfig(level=logging.DEBUG)
+log = logging.getLogger(__name__)
+logging.getLogger("praw").setLevel(logging.WARNING)
+logging.getLogger("prawcore").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
+
+statsio = StatsIO()
 
 
 def lambda_handler(event, context):
     process_stats()
 
 
-def process_stats(daysago=None):
+def process_stats(daysago: Optional[int] = None):
     """pull basic statistics from a thread's comments"""
     start = datetime.now(timezone.utc)
     print(f"process_stats started at {start}...")
 
-    dts = []
+    dt_date: date
     if RECAP or daysago:
-        dts = list(recap(daysago=daysago or 1))
+        dt_date = get_target_dt_date(1 if not daysago else daysago)
     else:
-        dts = list(current())
+        dt_date = statsio.latest_dt_date
 
-    dt_comments = list(chain(*[comments(dt) for dt in dts]))
+    dt_comments = fetch_comments(dt_date)
 
+    # TODO: no longer necessary?
     # during thunderdomes, calling comments() twice often results in duplicated
     # comments. reworking the way comments are written to s3 would be a proper fix
     # but deduping this way is simpler and not too high-cost.
-    if len(dts) > 1:
-        dt_comments = [dict(t) for t in {tuple(sorted(d.items())) for d in dt_comments}]
+    # if len(dts) > 1:
+    #     dt_comments = [dict(t) for t in {tuple(sorted(d.items())) for d in dt_comments}]
 
     print("processing comments...")
     full_stats, short_stats = _process_comments(dt_comments)
 
     print("writing results...")
-    write(
-        get_dt_prefix(dts[0].date),
+    statsio.write(
+        statsio.get_dt_prefix(dt_date),
         full_stats=full_stats,
         short_stats=short_stats,
     )
@@ -59,9 +70,9 @@ def process_stats(daysago=None):
     print(f"Finished at {done.isoformat()}, took {duration} seconds")
 
 
-def _process_comments(dt_comments) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def _process_comments(dt_comments: Iterable[Comment]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """build a full dataset and a short dataset from a list of comments"""
-    cdf = pandas.DataFrame(dt_comments)  # type: ignore
+    cdf = DataFrame([c.to_dict() for c in dt_comments])  # type: ignore
 
     print("removing bot comments...")
     # pandas syntax is dumb so pylance (rightly) thinks this returns a series
@@ -277,9 +288,9 @@ def _find_spammiest_by_hour(tdf: DataFrame) -> List[dict]:
     Returns:
         [{'created_et': val, 'author': val, 'comment_count': val}, ...]
     """
-    spammiest_s = tdf.groupby([pandas.Grouper(freq="H"), "author"]).size()  # type: ignore
+    spammiest_s: Series[int] = tdf.groupby([pandas.Grouper(freq="H"), "author"]).size()  # type: ignore
     d = {}
-    for k, v in spammiest_s.iteritems():
+    for k, v in spammiest_s.iteritems():  # type: ignore # TODO: why does this complain about spammiest_s being an int?
         dt = int(k[0].value / 10**9)  # type: ignore
         if dt not in d.keys() or d[dt][1] < v:
             d[dt] = (k[1], v)  # type: ignore
@@ -309,7 +320,9 @@ def find_top_emoji(cdf: DataFrame) -> List[List]:
         [[<count>, <emoji>], ...]
     """
     top_emoji = cdf["body"].apply(find_emoji)
+    log.info(top_emoji)
     top_emoji = top_emoji.where(top_emoji.str.len() > 0).dropna().explode().value_counts()  # type: ignore
+    log.info(top_emoji)
     return list(zip(top_emoji, top_emoji.index))  # type: ignore
 
 

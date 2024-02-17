@@ -1,14 +1,20 @@
+from ast import mod
+from asyncio import threads
 from dataclasses import asdict, dataclass, field
 import logging
 import os
+from random import randint
 import re
 
 from datetime import date, datetime, timedelta, timezone
+from tabnanny import check
 from token import OP
 from typing import Any, Dict, Generator, Hashable, List, Optional, Tuple, Union
 
 import json
 from unittest import result
+from h11 import Data
+import jinja2
 import numpy
 import pandas
 import pytz
@@ -16,26 +22,23 @@ import pytz
 from pandas import DataFrame
 from praw.exceptions import ClientException, RedditAPIException
 
-from tacostats.statsio import write, read_comments, read, get_age
-from tacostats.stats import find_top_emoji
-from tacostats.models import Comment
-from tacostats.openai_api import create_chat_completion
-from tacostats.util import build_time_indexed_df
-from tacostats.reddit.dt import get_target_date
-from tacostats.reddit.report import reply
+from tacostats.statsio import StatsIO
 
-logging.basicConfig(level=logging.DEBUG)
+# from tacostats.stats import find_top_emoji
+from tacostats.models import Comment, Thread
+from tacostats.openai_api import MaxTokensExceededError, create_chat_completion, estimate_tokens
+from tacostats.config import CHAT_MODEL, GPT_MODE, MAX_TOKENS, USE_CACHE
+from tacostats.util import build_time_indexed_df, render_template
+
+# from tacostats.reddit.report import reply
+
+
 log = logging.getLogger(__name__)
-logging.getLogger("praw").setLevel(logging.WARNING)
-logging.getLogger("prawcore").setLevel(logging.WARNING)
-logging.getLogger("urllib3").setLevel(logging.WARNING)
-logging.getLogger("botocore").setLevel(logging.WARNING)
-
 
 NEUTER_RE = re.compile(r"!ping", re.MULTILINE | re.IGNORECASE | re.UNICODE)
 USERSTATS_PREFIX = "userstats"
-GPT_MODE = os.getenv("GPT_MODE", "false").lower() == "true"
-USE_CACHE = os.getenv("USE_CACHE", "true").lower() == "true"
+
+statsio = StatsIO()
 
 
 @dataclass
@@ -47,9 +50,26 @@ class UserStatsResults:
     average_score: float
     username: str
     span: str
-    comments: List[Comment] = field(default_factory=list)
-    gpt_prompt: Optional[str] = None
+    comments: List[Comment] = field(default_factory=list)  # deprecated
+    threads: List[Thread] = field(default_factory=list)
+    gpt_prompt: Optional[str] = None  # deprecated
     gpt_response: Optional[str] = None
+    overall_stats: Optional[Dict[str, Any]] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "comments_per_day": self.comments_per_day,
+            "words_per_comment": self.words_per_comment,
+            "top_emoji": self.top_emoji,
+            "top_comment": self.top_comment,
+            "average_score": self.average_score,
+            "username": self.username,
+            "span": self.span,
+            # "comments": None,  # deprecated
+            # "threads": [t.to_dict() for t in self.threads],
+            # "gpt_prompt": None,  # deprecated
+            "gpt_response": self.gpt_response,
+        }
 
 
 def lambda_handler(event, context):
@@ -72,15 +92,18 @@ def process_userstats(username: str, comment_id: str, days: int = 7):
     """dt stats but for a single user"""
     results = None
     if USE_CACHE:
+        log.info(f"cache hit: {username} / {days}.")
         results = _read_results(username, days)
     if not results:
+        log.info(f"cache miss: {username} / {days}. building results...")
         results = _build_results(username, days)
-    log.info(f"results: {results}")
+    log.debug(f"results: {results}")
 
     # post comment
-    template = "userstats.md.j2" if not GPT_MODE else "userstats_gpt.md.j2"
+    template = "userstats.md.j2" if not GPT_MODE else "userstats_gpt_response.md.j2"
     try:
-        reply(asdict(results), template, comment_id)
+        print(f"replying to {comment_id}")
+        # reply(asdict(results), template, comment_id)
     except RedditAPIException as e:
         log.exception(f"While trying to reply, Reddit reported an error: {e}")
     except ClientException as e:
@@ -91,33 +114,14 @@ def process_userstats(username: str, comment_id: str, days: int = 7):
         log.info(f"replied to {comment_id}")
 
 
-def _get_gpt_response(results: UserStatsResults) -> Tuple[str, str]:
-    comments_str = "\n".join([f"---\n{c.body}\n" for c in results.comments])
-    prompt = f"""
-        You are responding to u/{results.username}. The following is a summary of their activity over the last {results.span}.
-        They wrote {results.comments_per_day['max']} comments in a single day, 
-        {results.comments_per_day['mean']} comments per day on average with an average score of {results.average_score}.
-        These are the emoji they used along with total count of each: {results.top_emoji}.
-        They use an average of {results.words_per_comment['mean']} words per comment, with a max of {results.words_per_comment['max']}.
-        Their most popular comment was written 
-        {results.comments_per_day['max_day']} and had a score of {results.top_comment['score']}. That comment was:
-        ---
-        {results.top_comment['body']}
-        ---
+def _sample_threads(thread_sizes: List[Tuple[str, int]]) -> Generator[Tuple[str, int], None, None]:
+    tokens = 0
+    while tokens < MAX_TOKENS and len(thread_sizes) > 0:
+        thread, size = thread_sizes.pop(randint(0, len(thread_sizes) - 1))
+        if size + tokens > MAX_TOKENS * 0.85:
+            continue
 
-        The comments they wrote in the last {results.span} follow.
-        {comments_str}
-    """
-    prompt += """\n\n
-            Give the person a recap of their activity. Focus on the comments and sprinkle in one or two of the most extreme statistics. 
-            If most of their comments revolve around one topic, try to reference that, especially if it seems like an inside joke.
-            
-            Address your response to them directly. 
-            Take the piss out of them a little but don't spend a lot of time praising or critiquing them.
-            Try to form a narrative about their activity, and don't be afraid to be a little snarky.
-            Group topics together.
-        """
-    return (prompt, create_chat_completion(prompt, temperature=1))
+        yield thread, size
 
 
 def _get_user_prefix(username: str, span: str) -> str:
@@ -135,13 +139,112 @@ def _get_span(days: int) -> Optional[str]:
         return "all time"
 
 
+def _get_daily_stats(days: int) -> Dict[str, Any]:
+    """Return a dict of daily stats for the last N days"""
+    dt_dates = statsio.get_dt_dates(daysago=days)
+    comments = list(statsio.read_comments(dt_dates))
+    df = DataFrame([c.to_dict() for c in comments])  # type: ignore
+    return {
+        "comments_per_day": _get_comments_per_day_by_user(df),
+        "words_per_comment": _get_words_per_comment(df),
+        "top_comment": _get_top_comment(df),
+        "average_score": _get_average_score(df),
+    }
+
+
+def _build_system_prompt(threads_by_score: List[Tuple[str, int]], results: UserStatsResults) -> str:
+    """Build a system prompt for GPT-4 based on the top threads"""
+    threads_str = "\n".join([t[0] for t in threads_by_score])
+    return render_template(
+        {
+            "threads_str": threads_str,
+            "cpd_mean": results.comments_per_day["mean"],
+            "overall_cpd_mean": results.overall_stats["comments_per_day"]["mean"],
+            "overall_cpd_max": results.overall_stats["comments_per_day"]["max"],
+            "top_comment": results.top_comment["body"],
+        },
+        "userstats_system_prompt.txt.j2",
+    )
+
+
+def _get_gpt_response(results: UserStatsResults, model: str = CHAT_MODEL) -> str:
+    # The following is a summary of their activity over the last {results.span}.
+    # They wrote {results.comments_per_day['max']} comments in a single day,
+    # {results.comments_per_day['mean']} comments per day on average with an average score of {results.average_score}.
+    # These are the emoji they used along with total count of each: {results.top_emoji}.
+    # They use an average of {results.words_per_comment['mean']} words per comment, with a max of {results.words_per_comment['max']}.
+    # Their most popular comment was written
+    # {results.comments_per_day['max_day']} and had a score of {results.top_comment['score']}. That comment was:
+    # ---
+    # {results.top_comment['body']}
+    # ---
+    # Focus on the comments and sprinkle in one or two of the most extreme statistics.
+    # If most of their comments revolve around one topic, try to reference that, especially if it seems like an inside joke.
+    #     Try to form a narrative about their activity.
+    # Group topics together.
+    #     Use the following questions to guide your thinking but don't reference them directly:
+    # - What comes to mind when reading their threads?
+    # - How would you describe the last {results.span}?
+    # - How did they interact with others and how did others respond to them?
+    # - Was there a thread (or two) that was especially notable?
+    # - Did they post too litte for you to work with?
+    #
+    # - UNLESS THEY POST SAD THINGS OFTEN, DO NOT HEAP PRAISE OR SUPPORT on people, take the piss a bit and have fun with it.
+    # - BE **WAY TOO** NICE TO PEOPLE WHO ARGUE A LOT OR ARE MEAN. Be so sweet it makes them sick.
+    # - IF SOMEONE IS ALWAYS NICE, TAKE THE PISS HARD. Rip on them how Jimmy Carr would rip on a heckler.
+    # - IF SOMEONE COMPLAINS A LOT, COMPLAIN ABOUT SOMETHING UNRELATED INSTEAD OF TALKING ABOUT THEIR COMMENTS.
+    #
+    # Look for a recurring theme or pattern in their comments.
+    # Keep it SHORT -- 150-200 words MAX.
+    threads_by_score = sorted([(t.to_slim_text(), t.get_avg_score()) for t in results.threads], key=lambda x: x[1], reverse=True)
+    chat_prompt = render_template({"username": results.username, "span": results.span}, "userstats_chat_prompt.txt.j2")
+    system_prompt = _build_system_prompt(threads_by_score, results)
+    token_estimate = estimate_tokens(chat_prompt + system_prompt, model)
+
+    # if over MAX_TOKENS, pop low-score threads until we're under to the token limit
+    while token_estimate > MAX_TOKENS * 0.8:
+        threads_by_score.pop(-1)
+        system_prompt = _build_system_prompt(threads_by_score, results)
+        token_estimate = estimate_tokens(chat_prompt + system_prompt, model)
+
+    log.info(f"using {len(threads_by_score)}/{len(results.threads)} threads ({token_estimate} tokens) for GPT response.")
+
+    response = ""
+    attempts = 0
+    while response == "" and attempts < 3:
+        try:
+            response = create_chat_completion(chat_prompt, system_prompt, temperature=0, model=model)
+        except MaxTokensExceededError as exc:
+            # this shouldn't be necessary, but just in case
+            attempts += 1
+            threads_by_score.pop(-1)
+            system_prompt = _build_system_prompt(threads_by_score, results)
+            log.error(f"{exc}. retrying with {len(threads_by_score)} threads...")
+
+        # check_prompt = (
+        #     f"Evaluate whether the following response from GPT4 is an accurate representation of u/{results.username}'s activity."
+        # )
+        # check_prompt += "\nYour response MUST start either 'Y' for yes or 'N' for no on the first line."
+        # check_prompt += "An explanation and recommendations for prompt changes MUST start on the second line."
+        # check_prompt += "Your response must less than 200 words long."
+        # check_prompt += f"\nu/{results.username}'s activity\n{threads_str}\n\nGPT4's Response:\n{response}"
+
+        # check_response = create_chat_completion(chat_prompt=check_prompt, model=model, temperature=0)
+        # if check_response.startswith("no"):
+        #     response = ""
+        #     log.error("gpt response was rejected. retrying...")
+
+    raise RuntimeError("unable to generate chat completion.")
+
+
 def _build_results(username: str, days: int) -> UserStatsResults:
     """read in author comments and return result set"""
     # get all comments by a single author
-    comments = list(_generate_author_comments(username, days))
+    dt_dates = statsio.get_dt_dates(daysago=days)
+    comments = list(statsio.read_comments(dt_dates, username))
     # yeah... we're swapping a dataclass back to dict right after generating it, but whatever.
     df = DataFrame([c.to_dict() for c in comments])  # type: ignore
-    top_emoji = find_top_emoji(df)
+    top_emoji = []  # find_top_emoji(df) # TODO: Re-enable
     span = _get_span(days) or "week"
     results = UserStatsResults(
         comments_per_day=_get_comments_per_day(df),
@@ -151,14 +254,15 @@ def _build_results(username: str, days: int) -> UserStatsResults:
         average_score=_get_average_score(df),
         username=username,
         span=span,
-        comments=comments,
+        overall_stats=_get_daily_stats(days),
     )
+    log.info(f"results: {results}")
 
     if GPT_MODE:
-        # log.info(f"getting GPT response for {username} over the last {span}. results: {results}")
-        results.gpt_prompt, results.gpt_response = _get_gpt_response(results)
+        results.threads = list(statsio.read_threads(dt_dates, username))
+        results.gpt_response = _get_gpt_response(results)
 
-    write(prefix=USERSTATS_PREFIX, **{_get_user_prefix(username, span): asdict(results)})
+    statsio.write(dt_prefix=USERSTATS_PREFIX, **{_get_user_prefix(username, span): results.to_dict()})
     return results
 
 
@@ -175,12 +279,14 @@ def _read_results(username, days) -> Optional[UserStatsResults]:
 
     user_prefix = _get_user_prefix(username, _get_span(days) or "")
     try:
-        if get_age(USERSTATS_PREFIX, user_prefix) < max_age:
-            results = UserStatsResults(**read(USERSTATS_PREFIX, user_prefix))
+        if statsio.get_age(USERSTATS_PREFIX, user_prefix) < max_age:
+            results = UserStatsResults(**statsio.read(USERSTATS_PREFIX, user_prefix))
             if GPT_MODE and not results.gpt_response:
-                # log.info(f"getting GPT response for {username} over the last {results.span}. results: {results}")
-                results.gpt_prompt, results.gpt_response = _get_gpt_response(results)
-                write(prefix=USERSTATS_PREFIX, **{_get_user_prefix(username, results.span): asdict(results)})
+                if not results.threads:
+                    log.debug(f"no threads found in stored results for {username}. fetching...")
+                    results.threads = list(statsio.read_threads(statsio.get_dt_dates(daysago=days), username))
+                _, results.gpt_response = _get_gpt_response(results)
+                statsio.write(dt_prefix=USERSTATS_PREFIX, **{_get_user_prefix(username, results.span): asdict(results)})
 
     except KeyError:
         pass
@@ -204,6 +310,13 @@ def _get_comments_per_day(df: DataFrame) -> Dict[str, Union[int, float, str]]:
     return {"max": cpd.max(), "mean": cpd.mean(), "max_day": _get_friendly_date_string(max_day)}
 
 
+def _get_comments_per_day_by_user(df: DataFrame) -> Dict[str, Union[int, float, str]]:
+    """Find max and mean comments per day"""
+    tdf = build_time_indexed_df(df)
+    cpu = tdf.groupby([pandas.Grouper("author"), pandas.Grouper(freq="D")]).size()  # type: ignore
+    return {"max": cpu.max(), "mean": cpu.mean()}
+
+
 def _get_comments_per_hour(df: DataFrame) -> Dict[str, Union[int, float]]:
     """Find max and mean comments per hour"""
     tdf = build_time_indexed_df(df)
@@ -216,22 +329,6 @@ def _get_words_per_comment(df: DataFrame) -> Dict[str, Union[int, float]]:
     """Find max and mean words per comment"""
     wc = df["body"].str.count(" ") + 1
     return {"max": wc.max(), "mean": wc.mean()}
-
-
-def _generate_author_comments(username: str, days: int) -> Generator[Comment, None, None]:
-    """Find all DT comments belonging to a particular user, going back `USERSTATS_HISTORY` days."""
-    for dt_date in [get_target_date(i) for i in range(0, days)]:
-        yield from _generate_user_comments(username, dt_date=dt_date)
-
-
-def _generate_user_comments(username: str, dt_date: date) -> Generator[Comment, None, None]:
-    """Read comments file for date, filter out a single user's comments."""
-    try:
-        for comment in read_comments(dt_date):
-            if comment.author == username:
-                yield comment
-    except Exception as e:
-        pass
 
 
 def _get_friendly_date_string(dt64: numpy.datetime64) -> str:
@@ -250,4 +347,4 @@ def _get_friendly_date_string(dt64: numpy.datetime64) -> str:
 
 
 if __name__ == "__main__":
-    process_userstats("CletusVonIvermectin", "h3ak825")
+    process_userstats("jenbanim", "h3ak825")

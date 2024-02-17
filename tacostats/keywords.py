@@ -1,25 +1,24 @@
-from itertools import chain
 import logging
 import os
 import re
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from io import StringIO
 import sys
-from typing import Any, Dict, Generator, Iterable, List, Tuple
+from typing import Generator, Iterable, Optional, Tuple
 
 import contractions
-import pandas
 import nltk
 
 from markdown import Markdown
-from praw.reddit import Comment
+from pandas import DataFrame
 
-from tacostats.statsio import write, get_dt_prefix
+from tacostats.statsio import StatsIO
 from tacostats.reddit import report
-from tacostats.reddit.dt import comments, recap, current
-from tacostats.config import RECAP, STOPWORDS, COMMON_WORDS, CHUNK_TYPES, BOT_TRIGGERS, EXCLUDED_AUTHORS
-
+from tacostats.reddit.dt import fetch_comments
+from tacostats.config import RECAP, STOPWORDS, COMMON_WORDS, CHUNK_TYPES, BOT_TRIGGERS, EXCLUDED_AUTHORS, USE_EXISTING
+from tacostats.models import Comment
+from tacostats.tacostats.util import get_target_dt_date
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -28,6 +27,7 @@ logging.getLogger("prawcore").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
 
+statsio = StatsIO()
 
 # before importing pattern need to download the reqd corpora to /tmp, but only in remote Lambda
 # for whatever reason, this doesn't appear to be necessary locally, even using sam invoke
@@ -44,17 +44,23 @@ def lambda_handler(event, context):
     process_keywords()
 
 
-def process_keywords(daysago=None):
+def process_keywords(daysago: Optional[int] = 0):
     """pull keywords out of the dt, score them, and return all but the least significant"""
     start = datetime.now(timezone.utc)
     log.info(f"started at {start}...")
 
     log.info("getting comments...")
-    day = datetime.now().date()
+    dt_date = datetime.now().date()
     if RECAP or daysago:
-        day = day - timedelta(1 if not daysago else daysago)
+        dt_date = get_target_dt_date(1 if not daysago else daysago)
 
-    dt_comments = comments(day=day)
+    dt_comments: Iterable[Comment] = []
+    if USE_EXISTING:
+        log.info("using existing comments...")
+        dt_comments = statsio.read_comments(dt_date)
+    else:
+        log.info("getting comments from reddit...")
+        dt_comments = fetch_comments(dt_date)
 
     log.info("processing comments...")
     processed = list(_process_comments(dt_comments))
@@ -71,7 +77,7 @@ def process_keywords(daysago=None):
     }
 
     log.info("writing stats...")
-    write(get_dt_prefix(day), keywords=keywords)
+    statsio.write(statsio.get_dt_prefix(dt_date), keywords=keywords)
 
     log.info("posting comment...")
     report.post(keywords, "keywords.md.j2")
@@ -133,9 +139,9 @@ def _score_chunk(chunk) -> float:
     return score
 
 
-def _process_comments(comments) -> Generator[Tuple[str, float], None, None]:
+def _process_comments(comments: Iterable[Comment]) -> Generator[Tuple[str, float], None, None]:
     """pull significant keywords from comment list"""
-    cdf = pandas.DataFrame(comments)  # type: ignore
+    cdf = DataFrame([c.to_dict() for c in comments])  # type: ignore
 
     log.debug("removing bot comments...")
     # pandas syntax is dumb so pylance (rightly) thinks this returns a series
@@ -144,13 +150,13 @@ def _process_comments(comments) -> Generator[Tuple[str, float], None, None]:
     log.debug(f"got {cdf.count()} comments")
 
     # parse each comment, sorting the results by score
-    parsed_comments = cdf[["body"]].apply(lambda x: [sorted(_parse_comment(c), key=lambda y: y[0], reverse=True) for c in x])
+    parsed_comments: DataFrame = cdf[["body"]].apply(lambda x: [sorted(_parse_comment(c), key=lambda y: y[0], reverse=True) for c in x])
 
     # explode each result (a list of tuples) into rows of tuples, drop NaNs
     parsed_comments = parsed_comments.explode("body").dropna()
 
     # create a new dataframe, turning each tuple element into a column and filter common words (why isn't the scoring doing this??)
-    keywords_df = pandas.DataFrame(parsed_comments["body"].to_list(), columns=["score", "keyword"])
+    keywords_df = DataFrame(parsed_comments["body"].to_list(), columns=["score", "keyword"])
     keywords_df = keywords_df.loc[keywords_df["score"] > 1]
     keywords_df = keywords_df.loc[~keywords_df["keyword"].isin(COMMON_WORDS)]
 

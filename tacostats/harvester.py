@@ -2,12 +2,12 @@ import re
 import sys
 
 
-from datetime import datetime, timezone
-from itertools import chain
+from datetime import date, datetime, timezone
 
-from tacostats.statsio import write, get_dt_prefix
+from tacostats.statsio import get_latest_dt_date, write, get_dt_prefix
 from tacostats.config import RECAP
-from tacostats.reddit.dt import current, recap, comments
+from tacostats.reddit.dt import fetch_comments
+from tacostats.util import get_target_dt_date
 
 NEUTER_RE = re.compile(r"!ping", re.MULTILINE | re.IGNORECASE | re.UNICODE)
 
@@ -21,18 +21,16 @@ def harvest_comments(daysago=None):
     start = datetime.now(timezone.utc)
     print(f"harvest_comments started at {start}...")
 
-    dts = []
+    dt_date: date
     if RECAP or daysago:
-        dts = list(recap(daysago=daysago or 1))
+        dt_date = get_target_dt_date(1 if not daysago else daysago)
     else:
-        dts = list(current())
-
-    dt_comments = list(chain(*[comments(dt) for dt in dts]))
+        dt_date = get_latest_dt_date()
 
     print("writing results...")
     write(
-        get_dt_prefix(dts[0].date),
-        comments=dt_comments,
+        get_dt_prefix(dt_date),
+        comments=list(fetch_comments(dt_date)),
     )
 
 
