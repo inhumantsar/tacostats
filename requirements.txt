@@ -4,7 +4,7 @@ contractions==0.1.73
 emoji==2.10.1
 jinja2==3.1.3
 markdown==3.5.2
-pandas==2.2.0
+pandas==2.2.1
 # `pattern` depends on gcc, mysql-devel and friends
 pattern==3.6
 praw==7.7.1
