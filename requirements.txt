@@ -1,4 +1,4 @@
-awscli==1.32.39
+awscli==1.32.64
 boto3==1.34.39
 contractions==0.1.73
 emoji==2.10.1
